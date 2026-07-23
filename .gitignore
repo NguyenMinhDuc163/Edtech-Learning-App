@@ -56,3 +56,7 @@ ios/fastlane/.env.*
 !ios/fastlane/.env.example
 ios/fastlane/AuthKey_*.p8
 android/fastlane/play-store-credentials*.json
+
+# Harness core maintenance binary
+scripts/bin/harness
+scripts/bin/harness.exe

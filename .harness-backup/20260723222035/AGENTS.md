@@ -10,30 +10,30 @@ EdTech is a Flutter/Dart learning app with Firebase/Google sign-in, Dio-based ba
 
 ```bash
 # Install dependencies
-fvm flutter pub get
+flutter pub get
 
 # Static analysis/lints
-fvm flutter analyze
+flutter analyze
 
 # Run all tests
-fvm flutter test
+flutter test
 
 # Run a single test file
-fvm flutter test test/icon_path_test.dart
+flutter test test/icon_path_test.dart
 
 # Run one test by name
-fvm  flutter test test/icon_path_test.dart --plain-name "icon_path assets test"
+flutter test test/icon_path_test.dart --plain-name "icon_path assets test"
 
 # Run the app
-fvm flutter run
-fvm flutter run -d chrome
-fvm flutter run -d ios
+flutter run
+flutter run -d chrome
+flutter run -d ios
 
 # Build release artifacts
-fvm flutter build apk --release
-fvm flutter build appbundle --release
-fvm flutter build ios --release
-fvm flutter build web --release -t lib/main_preview.dart
+flutter build apk --release
+flutter build appbundle --release
+flutter build ios --release
+flutter build web --release -t lib/main_preview.dart
 
 # Regenerate envied files after changing env/.env.dev or @Envied fields
 dart run build_runner build --delete-conflicting-outputs
@@ -61,7 +61,7 @@ The project uses `flutter_lints` via `analysis_options.yaml`; `flutter analyze` 
 ## Architecture map
 
 - `lib/modules/` contains feature areas. Most features are organized as `screen/`, `bloc/`, `repository/`, `model/`, and `widgets/` or `widget/` subfolders.
-  - Existing feature areas include auth, home, course, assessment, message/chatbot, payment, profile, purchased_courses, reviews, ranking, dashboard, and account.
+    - Existing feature areas include auth, home, course, assessment, message/chatbot, payment, profile, purchased_courses, reviews, ranking, dashboard, and account.
 - `lib/core/` contains app-wide primitives: route definitions, navigation service, authentication binding, constants, theme system, shared widgets, error handling, debouncing, and general utilities.
 - `lib/data/` contains cross-feature infrastructure: `ApiClient`, Dio interceptors, secure storage, common request/response models, connectivity, auth, user, and error-dialog services.
 - `lib/common/` contains shared app status/event models and reusable common widgets.
@@ -111,12 +111,3 @@ Current tests are Flutter tests under `test/`:
 - `test/widget_test.dart` is the default widget test scaffold.
 
 Use `flutter test <path>` for a single file and `--plain-name` for one named test.
-<!-- HARNESS:BEGIN -->
-## Harness
-
-Claude Code does not auto-load `AGENTS.md`. Import that single canonical
-project instruction source. Keep this bare `@` line outside backticks so the
-import remains active.
-
-@AGENTS.md
-<!-- HARNESS:END -->
