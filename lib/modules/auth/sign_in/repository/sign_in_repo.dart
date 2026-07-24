@@ -51,6 +51,7 @@ class SignInRepo {
           email: user.email ?? '',
           role: user.role ?? 'student',
           isPayment: loginResponse.data!.isPayment,
+          isAds: loginResponse.data!.isAds,
           fullName: user.fullName,
           avatarUrl: user.avatarUrl,
           phone: user.phone,

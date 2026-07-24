@@ -35,6 +35,7 @@ class Data {
     required this.refreshToken,
     required this.user,
     required this.isPayment,
+    this.isAds,
   });
 
   final String? accessToken;
@@ -42,12 +43,19 @@ class Data {
   final User? user;
   final String? isPayment;
 
+  /// Server-controlled ad eligibility flag.
+  /// `"N"` means ads are disabled (VIP/premium user).
+  /// `null` or any other value means ads are enabled (free user, or
+  /// server hasn't implemented this field yet — backward compatible).
+  final String? isAds;
+
   factory Data.fromJson(Map<String, dynamic> json){
     return Data(
       accessToken: json["access_token"],
       refreshToken: json["refresh_token"],
       user: json["user"] == null ? null : User.fromJson(json["user"]),
       isPayment: json["isPayment"],
+      isAds: json["isAds"],
     );
   }
 
@@ -56,11 +64,12 @@ class Data {
     "refresh_token": refreshToken,
     "user": user?.toJson(),
     "isPayment": isPayment,
+    "isAds": isAds,
   };
 
   @override
   String toString(){
-    return "$accessToken, $refreshToken, $user, $isPayment, ";
+    return "$accessToken, $refreshToken, $user, $isPayment, $isAds, ";
   }
 }
 

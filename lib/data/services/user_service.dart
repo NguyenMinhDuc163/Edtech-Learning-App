@@ -52,6 +52,13 @@ class UserService {
   String get email => _userData?.email ?? '';
   String get role => _userData?.role ?? 'student';
   String? get isPayment => _userData?.isPayment;
+
+
+  /// Whether the server has explicitly disabled ads for this user.
+  /// `true` only when `isAds == "N"` (VIP/premium).
+  /// `false` for `null` or any other value (backward compatible:
+  /// if the server hasn't rolled out this field, ads stay enabled).
+  bool get showAds => _userData?.isAds != 'N';
 }
 
 class UserData {
@@ -60,6 +67,7 @@ class UserData {
   final String email;
   final String role;
   final String? isPayment;
+  final String? isAds;
   final String? fullName;
   final String? avatarUrl;
   final String? phone;
@@ -73,6 +81,7 @@ class UserData {
     required this.email,
     required this.role,
     this.isPayment,
+    this.isAds,
     this.fullName,
     this.avatarUrl,
     this.phone,
@@ -88,6 +97,7 @@ class UserData {
       email: json['email'] ?? '',
       role: json['role'] ?? 'student',
       isPayment: json['isPayment'],
+      isAds: json['isAds'],
       fullName: json['fullName'],
       avatarUrl: json['avatarUrl'],
       phone: json['phone'],
@@ -106,6 +116,7 @@ class UserData {
       'email': email,
       'role': role,
       'isPayment': isPayment,
+      'isAds': isAds,
       'fullName': fullName,
       'avatarUrl': avatarUrl,
       'phone': phone,

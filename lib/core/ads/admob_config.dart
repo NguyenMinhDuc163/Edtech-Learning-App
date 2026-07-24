@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:ed_tech/data/services/user_service.dart';
+
 abstract final class AdMobConfig {
   AdMobConfig._();
 
@@ -7,7 +9,29 @@ abstract final class AdMobConfig {
   // GLOBAL SWITCHES
   // =========================================================
 
-  static const bool adsEnabled = true;
+  /// Compile-time master switch. Set to `false` to disable all ads
+  /// regardless of server state (e.g., during development or testing).
+  static const bool _adsEnabledCompile = true;
+
+  /// Runtime ad eligibility.
+  ///
+  /// Ads are shown only when **both** conditions are true:
+  /// 1. The compile-time switch (`_adsEnabledCompile`) is on.
+  /// 2. The server has NOT set `isAds: "N"` for this user
+  ///    (i.e. `UserService.instance.showAds` is `true`).
+  ///
+  /// **Backward compatible**: if `UserService` is unavailable (app not fully
+  /// booted) or the server hasn't rolled out `isAds` yet (null), ads stay
+  /// enabled — the default free-user experience.
+  static bool get adsEnabled {
+    if (!_adsEnabledCompile) return false;
+    try {
+      return UserService.instance.showAds;
+    } catch (_) {
+      // UserService not initialized yet → allow ads (app-startup edge case).
+      return true;
+    }
+  }
 
   static const bool bannerEnabled = true;
   static const bool nativeEnabled = true;
