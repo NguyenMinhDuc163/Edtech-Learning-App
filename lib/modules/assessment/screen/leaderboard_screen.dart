@@ -1,3 +1,5 @@
+import 'package:ed_tech/core/ads/admob_config.dart';
+import 'package:ed_tech/core/ads/widgets/native_ad_widget.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:ed_tech/init.dart';
 import 'package:ed_tech/modules/assessment/bloc/leaderboard_cubit.dart';
@@ -76,9 +78,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                           _buildTopThreePodium(items.take(3).toList()),
                           const SizedBox(height: 16),
                           if (items.length > 3)
-                            ...items.skip(3).toList().asMap().entries.map((entry) {
-                              return _buildRankedCard(entry.value, entry.key + 4);
-                            }),
+                            ..._buildRankedListWithAds(items.skip(3).toList()),
                         ] else
                           ...items.asMap().entries.map((entry) {
                             return _buildRankedCard(entry.value, entry.key + 1);
@@ -600,5 +600,23 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   Future<void> _onRefresh() async {
     await context.read<LeaderboardCubit>().getLeaderboard();
+  }
+
+  List<Widget> _buildRankedListWithAds(List<LeaderboardItem> items) {
+    final widgets = <Widget>[];
+    final adPosition = AdMobConfig.leaderboardNativePosition - 4; // offset from rank 4
+
+    for (int i = 0; i < items.length; i++) {
+      widgets.add(_buildRankedCard(items[i], i + 4));
+
+      // Insert native ad after the item at adPosition
+      if (i == adPosition && i < items.length - 1) {
+        widgets.add(const SizedBox(height: 12));
+        widgets.add(const NativeAdWidget(height: 120));
+        widgets.add(const SizedBox(height: 12));
+      }
+    }
+
+    return widgets;
   }
 }

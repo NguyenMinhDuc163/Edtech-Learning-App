@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:ed_tech/core/ads/admob_config.dart';
+import 'package:ed_tech/core/ads/widgets/native_ad_widget.dart';
 import 'package:ed_tech/core/theme/app_colors.dart';
 import 'package:ed_tech/core/theme/app_text_styles.dart';
 import 'package:ed_tech/core/theme/app_pad.dart';
@@ -291,26 +293,7 @@ class CourseListWidget extends StatelessWidget {
               return Padding(
                 padding: AppPad.h24,
                 child: Column(
-                  children:
-                      courses.map((course) {
-                        return CourseListItem(
-                          title: course.title ?? 'Untitled Course',
-                          instructor: course.teacher?.toString() ?? 'Unknown',
-                          price:
-                              course.price != null
-                                  ? course.price.formatCurrency()
-                                  : 'Free',
-                          duration:
-                              course.courseDuration != null
-                                  ? '${course.courseDuration} hours'
-                                  : '0 hours',
-                          imageUrl: course.thumbnailUrl?.toString(),
-                          rating: course.rating,
-                          discountAmount: course.discountAmount,
-                          showPrice: showPrice,
-                          onTap: () => _navigateToCourseDetail(context, course),
-                        );
-                      }).toList(),
+                  children: _buildCourseListWithAds(courses, showPrice, context),
                 ),
               );
             }
@@ -338,5 +321,52 @@ class CourseListWidget extends StatelessWidget {
             course.courseDescription?.toString() ?? course.description,
       },
     );
+  }
+
+  List<Widget> _buildCourseListWithAds(
+    List<DataCourse> courses,
+    bool showPrice,
+    BuildContext context,
+  ) {
+    final widgets = <Widget>[];
+    final interval = AdMobConfig.courseListNativeInterval;
+    final maxAds = AdMobConfig.courseListMaximumNativeAds;
+    int adCount = 0;
+
+    for (int i = 0; i < courses.length; i++) {
+      final course = courses[i];
+      widgets.add(
+        CourseListItem(
+          title: course.title ?? 'Untitled Course',
+          instructor: course.teacher?.toString() ?? 'Unknown',
+          price:
+              course.price != null
+                  ? course.price.formatCurrency()
+                  : 'Free',
+          duration:
+              course.courseDuration != null
+                  ? '${course.courseDuration} hours'
+                  : '0 hours',
+          imageUrl: course.thumbnailUrl?.toString(),
+          rating: course.rating,
+          discountAmount: course.discountAmount,
+          showPrice: showPrice,
+          onTap: () => _navigateToCourseDetail(context, course),
+        ),
+      );
+
+      // Insert native ad after every `interval` items
+      if (adCount < maxAds && (i + 1) % interval == 0 && i < courses.length - 1) {
+        widgets.add(
+          NativeAdWidget(
+            key: ValueKey('native_ad_course_$i'),
+            height: 120,
+          ),
+        );
+        adCount++;
+      }
+    }
+
+    return widgets;
   }
 }

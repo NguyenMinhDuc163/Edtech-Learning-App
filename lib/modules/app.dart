@@ -1,4 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:ed_tech/core/ads/app_open_ad_manager.dart';
 import 'package:ed_tech/core/app_authentication.dart';
 import 'package:ed_tech/modules/auth/initial/screen/onboarding_screen.dart';
 import 'package:ed_tech/modules/auth/login/screen/login_screen.dart';
@@ -29,19 +30,37 @@ class App extends StatefulWidget {
   State<App> createState() => _AppState();
 }
 
-class _AppState extends State<App> implements AppAuthenticationBindingObserver {
+class _AppState extends State<App>
+    with WidgetsBindingObserver
+    implements AppAuthenticationBindingObserver {
   @override
   void initState() {
     super.initState();
     // Register observer để listen auth events
     AppAuthenticationBinding.instance?.addObserver(this);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
     // Unregister observer khi widget dispose
     AppAuthenticationBinding.instance?.removeObserver(this);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+        AppOpenAdManager.instance.onPaused();
+        break;
+      case AppLifecycleState.resumed:
+        AppOpenAdManager.instance.onResumed();
+        break;
+      default:
+        break;
+    }
   }
 
   // Callback khi refresh token hết hạn hoặc authentication failed

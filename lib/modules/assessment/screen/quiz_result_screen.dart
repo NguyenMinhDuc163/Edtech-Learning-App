@@ -1,5 +1,10 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:ed_tech/init.dart';
+import 'package:ed_tech/core/ads/ad_frequency_manager.dart';
+import 'package:ed_tech/core/ads/ad_manager.dart';
+import 'package:ed_tech/core/ads/models/ad_show_result.dart';
+import 'package:ed_tech/core/ads/rewarded_interstitial_reward_manager.dart';
+import 'package:ed_tech/core/ads/widgets/native_ad_widget.dart';
 import 'package:ed_tech/core/theme/app_colors.dart';
 import 'package:ed_tech/core/theme/app_text_styles.dart';
 import 'package:ed_tech/core/theme/app_pad.dart';
@@ -73,6 +78,8 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
             _buildStatisticsCard(data),
             const SizedBox(height: 16),
             _buildQuestionResults(data),
+            const SizedBox(height: 20),
+            const NativeAdWidget(height: 100),
             const SizedBox(height: 20),
             _buildActionButtons(),
             const SizedBox(height: 20),
@@ -527,11 +534,15 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
   }
 
   void _goToHome() {
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      DashboardScreen.routeName,
-      (route) => false,
-    );
+    // Show Interstitial on leaving quiz result
+    AdManager.instance.showInterstitialIfAllowed().then((_) {
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        DashboardScreen.routeName,
+        (route) => false,
+      );
+    });
   }
 
   String _formatDuration(Duration? duration) {

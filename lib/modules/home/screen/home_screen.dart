@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ed_tech/init.dart';
+import 'package:ed_tech/core/ads/widgets/adaptive_banner_ad_widget.dart';
+import 'package:ed_tech/core/ads/widgets/native_ad_widget.dart';
 import 'package:ed_tech/core/widgets/app_gap.dart';
 import 'package:ed_tech/modules/home/bloc/home_controller.dart';
 import 'package:ed_tech/modules/home/bloc/home_cubit.dart';
@@ -132,7 +134,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             AppGap.h28,
+            const NativeAdWidget(height: 120),
+            AppGap.h28,
             const CourseSuggestionsWidget(),
+            AppGap.h24,
+            const AdaptiveBannerAdWidget(),
             AppGap.h24,
           ],
         ),

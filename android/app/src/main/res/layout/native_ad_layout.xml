@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.gms.ads.nativead.NativeAdView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/native_ad_background"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Attribution label -->
+        <TextView
+            android:id="@+id/native_ad_attribution"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ad"
+            android:textSize="10sp"
+            android:textColor="#FF9800"
+            android:textStyle="bold"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:background="@drawable/native_ad_attribution_bg"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Icon + Headline row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:id="@+id/native_ad_icon"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="10dp"
+                android:contentDescription="Ad icon" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/native_ad_headline"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textColor="#212121"
+                    android:textStyle="bold"
+                    android:maxLines="2"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/native_ad_advertiser"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="#757575"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <RatingBar
+                    android:id="@+id/native_ad_stars"
+                    style="?android:attr/ratingBarStyleSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:numStars="5"
+                    android:stepSize="0.5"
+                    android:isIndicator="true"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Media -->
+        <com.google.android.gms.ads.nativead.MediaView
+            android:id="@+id/native_ad_media"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:adjustViewBounds="true" />
+
+        <!-- Body -->
+        <TextView
+            android:id="@+id/native_ad_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="14sp"
+            android:textColor="#424242"
+            android:maxLines="3"
+            android:ellipsize="end" />
+
+        <!-- Store + Price row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <TextView
+                android:id="@+id/native_ad_store"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="12sp"
+                android:textColor="#757575" />
+
+            <TextView
+                android:id="@+id/native_ad_price"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="#4CAF50"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- CTA Button -->
+        <Button
+            android:id="@+id/native_ad_cta"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:layout_marginTop="10dp"
+            android:textSize="13sp"
+            android:textAllCaps="true"
+            android:paddingHorizontal="16dp"
+            android:backgroundTint="#1565C0"
+            android:textColor="#FFFFFF"
+            android:minHeight="0dp" />
+
+    </LinearLayout>
+</com.google.android.gms.ads.nativead.NativeAdView>

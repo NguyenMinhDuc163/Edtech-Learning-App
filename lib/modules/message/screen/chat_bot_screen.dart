@@ -1,4 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:ed_tech/core/ads/ad_manager.dart';
+import 'package:ed_tech/core/ads/chat_ai_quota_manager.dart';
+import 'package:ed_tech/core/ads/models/ad_show_result.dart';
 import 'package:ed_tech/core/constants/api_path.dart';
 import 'package:ed_tech/init.dart';
 import 'package:ed_tech/modules/message/bloc/chat_controller.dart';
@@ -60,6 +63,56 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
           SnackBar(
             content: Text('chat.load_history_error'.tr()),
             backgroundColor: AppColors.crimson,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showQuotaDialog(BuildContext context) async {
+    final quotaManager = ChatAiQuotaManager.instance;
+
+    if (!quotaManager.canWatchRewardedForQuestions) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('chat.quota_limit_reached'.tr()),
+          backgroundColor: AppColors.crimson,
+        ),
+      );
+      return;
+    }
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text('chat.quota_title'.tr()),
+        content: Text('chat.quota_rewarded_message'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('chat.cancel'.tr()),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('chat.watch_ad'.tr()),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      final adResult = await AdManager.instance.showRewarded(
+        onRewardEarned: (reward) async {
+          quotaManager.grantRewardedQuestions();
+        },
+      );
+
+      if (adResult == AdShowResult.rewardEarned && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('chat.reward_granted'.tr()),
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -184,6 +237,17 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
               onSend: () {
                 final text = _textController.text.trim();
                 if (text.isEmpty) return;
+
+                final quotaManager = ChatAiQuotaManager.instance;
+
+                if (!quotaManager.canAskQuestion) {
+                  // Show rewarded ad dialog
+                  _showQuotaDialog(context);
+                  return;
+                }
+
+                // Consume question quota
+                quotaManager.consumeFreeQuestion();
 
                 final controller = context.read<ChatController>();
                 final cubit = context.read<ChatbotCubit>();

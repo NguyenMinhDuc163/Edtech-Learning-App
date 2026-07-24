@@ -1,4 +1,7 @@
 import 'package:ed_tech/init.dart';
+import 'package:ed_tech/core/ads/admob_config.dart';
+import 'package:ed_tech/core/ads/widgets/adaptive_banner_ad_widget.dart';
+import 'package:ed_tech/core/ads/widgets/native_ad_widget.dart';
 import 'package:ed_tech/modules/message/bloc/chat_history_cubit.dart';
 import 'package:ed_tech/modules/message/model/sessions_response.dart';
 import 'package:ed_tech/modules/message/screen/chat_bot_screen.dart';
@@ -192,45 +195,70 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                 );
               }
 
-              return ListView.separated(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                itemCount: state.sessions.length + (state.hasMore ? 1 : 0),
-                separatorBuilder: (_, __) => const SizedBox(height: 14),
-                itemBuilder: (context, index) {
-                  if (index == state.sessions.length) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Color(0xFF6C56F9),
-                          ),
-                        ),
-                      ),
-                    );
-                  }
+              return Column(
+                children: [
+                  Expanded(
+                    child: ListView.separated(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                      itemCount: state.sessions.length +
+                          (state.hasMore ? 1 : 0) +
+                          (state.sessions.length > 5 ? 1 : 0),
+                      separatorBuilder: (_, index) {
+                        if (index == 4) return const SizedBox(height: 24);
+                        return const SizedBox(height: 14);
+                      },
+                      itemBuilder: (context, index) {
+                        if (index == state.sessions.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF6C56F9),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
 
-                  final session = state.sessions[index];
+                        // Insert Native Ad after the 5th conversation
+                        if (index == 5 && state.sessions.length > 5) {
+                          return const Padding(
+                            padding: EdgeInsets.only(bottom: 14),
+                            child: NativeAdWidget(height: 100),
+                          );
+                        }
 
-                  return _HistoryItem(
-                    session: session,
-                    formattedDate: _formatDate(session.lastActiveAt),
-                    onTap: () async {
-                      await Navigator.pushNamed(
-                        context,
-                        ChatBotScreen.routeName,
-                        arguments: session.sessionId,
-                      );
-                      if (mounted) {
-                        context.read<ChatHistoryCubit>().loadSessions();
-                      }
-                    },
-                    onDelete: () {
-                      _showDeleteConfirmDialog(session.sessionId);
-                    },
-                  );
-                },
+                        final sessionIndex =
+                            index > 5 && state.sessions.length > 5
+                                ? index - 1
+                                : index;
+                        final session = state.sessions[sessionIndex];
+
+                        return _HistoryItem(
+                          session: session,
+                          formattedDate: _formatDate(session.lastActiveAt),
+                          onTap: () async {
+                            await Navigator.pushNamed(
+                              context,
+                              ChatBotScreen.routeName,
+                              arguments: session.sessionId,
+                            );
+                            if (mounted) {
+                              context.read<ChatHistoryCubit>().loadSessions();
+                            }
+                          },
+                          onDelete: () {
+                            _showDeleteConfirmDialog(session.sessionId);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  if (state.sessions.length <= 5)
+                    const AdaptiveBannerAdWidget(),
+                ],
               );
             }
 

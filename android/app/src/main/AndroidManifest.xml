@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Edu Tech"
-        android:name="${applicationName}"
+        android:name=".MyApplication"
         android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true">
         <activity
@@ -32,6 +32,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-4649011658078977~5899784818" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

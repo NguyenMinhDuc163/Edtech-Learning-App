@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "core_version": "0.1.7",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "upstream_sha256": "07dcdd653335d02bd49e1371d2ecc9f3d89250fcc5041c8ad01f8bba543e17a9"
+    },
+    {
+      "path": ".agents/skills/audit-onboarding-proposal/SKILL.md",
+      "upstream_sha256": "8aa6e5d75743f747818a72cb2376efea9971882c23ebaaee18489095cad5f53e"
+    },
+    {
+      "path": ".agents/skills/audit-onboarding-proposal/agents/openai.yaml",
+      "upstream_sha256": "1f822840d05d627c43e8dcb87a8c54ef28e52c24cba72cf6950c142e360e1a81"
+    },
+    {
+      "path": ".agents/skills/audit-onboarding-proposal/scripts/validate_evidence_capsule.py",
+      "upstream_sha256": "9ea918717fa72f9040e851d93c3e9783a6e0100a94d23bec0d31a96f63859cb0"
+    },
+    {
+      "path": ".agents/skills/onboard-repository/SKILL.md",
+      "upstream_sha256": "6e74d8918d352e66cfbfb3f74afd16a832917fe3f360bd983f381c2429550b51"
+    },
+    {
+      "path": ".agents/skills/onboard-repository/agents/openai.yaml",
+      "upstream_sha256": "0992cf606b2680397e6aee60db3d39c62aa3d5773acaeefc2f4f1e18103537e9"
+    },
+    {
+      "path": ".agents/skills/onboard-repository/references/evidence-capsule-v1.md",
+      "upstream_sha256": "b9e1f9208842e725289469d0976b3e65670a30ee7f69be6d799cf4ba2a19fadb"
+    },
+    {
+      "path": ".agents/skills/onboard-repository/references/evidence-capsule-v2.md",
+      "upstream_sha256": "e91ef78922e3a196e966a7e60ae53e4894617668887abf165b293d147fb88737"
+    },
+    {
+      "path": ".agents/skills/onboard-repository/scripts/emit_evidence_bundle.py",
+      "upstream_sha256": "30583170ed4764b9ee3a147bc6e02ebce5095600a292688b9411825404f9e13f"
+    },
+    {
+      "path": ".agents/skills/onboard-repository/scripts/render_patch.py",
+      "upstream_sha256": "9e6b5c4b148e78171695ab964757e792d2a67b32517d08ad113df8de2da9cb38"
+    },
+    {
+      "path": "docs/WORKFLOW.md",
+      "upstream_sha256": "08ccd7a062d38a566b6f24631a501ba848e64ac31c6fcdb3b03e1abe2de313e8"
+    },
+    {
+      "path": "docs/README.md",
+      "upstream_sha256": "89974a19e4ff3fe833ff764ad252a7756580be55bf489dc5ba68d7f71e316e65"
+    },
+    {
+      "path": "docs/product/README.md",
+      "upstream_sha256": "8d1834591efccd4267f475905d32d26d9ba3a6c9d78acf2805bf69af48cb6c01"
+    },
+    {
+      "path": "docs/plans/README.md",
+      "upstream_sha256": "99a8461fc62f09c966c2c4c5bd2b62ea32cda1e18f8d70f7c939b5dd4b2c68e5"
+    },
+    {
+      "path": "docs/plans/active/README.md",
+      "upstream_sha256": "aec64998a72585b2a9c4c8909c7ed775c396c4c2e39c71b0ce4ee6e392784160"
+    },
+    {
+      "path": "docs/plans/completed/README.md",
+      "upstream_sha256": "1ba887f4fb54b7aa45e3f4f619d4b2dfa1eb63d52c09fbbd9588598862346dc7"
+    },
+    {
+      "path": "docs/decisions/README.md",
+      "upstream_sha256": "521abd46ee1291dfe13a500664f6046723c0f8360728501da434c0292ed92b2b"
+    },
+    {
+      "path": "docs/templates/decision.md",
+      "upstream_sha256": "e92ba7a5b7bc10ce6c213af75a191619fc305c3945cdd55d4dc6bac72dcd42c1"
+    },
+    {
+      "path": "docs/templates/exec-plan.md",
+      "upstream_sha256": "111c40ea8ab63a03561fdb54f235358546788b3a4e1bb26f220da8db50db92b9"
+    }
+  ]
+}
