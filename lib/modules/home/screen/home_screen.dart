@@ -117,8 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             const HomeHeaderWidget(),
-            const AdaptiveBannerAdWidget(),
-            AppGap.h12,
+            AppGap.h80,
             Padding(
               padding: AppPad.h20,
               child: HomePromoCarousel(
@@ -135,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             AppGap.h28,
-            const NativeAdWidget(height: 120),
+            const NativeAdWidget(height: 90),
             AppGap.h28,
             const CourseSuggestionsWidget(),
             AppGap.h24,

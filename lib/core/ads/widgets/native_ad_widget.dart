@@ -12,7 +12,7 @@ class NativeAdWidget extends StatefulWidget {
     this.height,
     this.onLoaded,
     this.onFailed,
-    this.showPlaceholder = true,
+    this.showPlaceholder = false,
   });
 
   final double? height;

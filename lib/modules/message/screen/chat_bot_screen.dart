@@ -2,7 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:ed_tech/core/ads/ad_manager.dart';
 import 'package:ed_tech/core/ads/chat_ai_quota_manager.dart';
 import 'package:ed_tech/core/ads/models/ad_show_result.dart';
-import 'package:ed_tech/core/ads/widgets/native_ad_widget.dart';
+import 'package:ed_tech/core/ads/widgets/adaptive_banner_ad_widget.dart';
 import 'package:ed_tech/core/constants/api_path.dart';
 import 'package:ed_tech/init.dart';
 import 'package:ed_tech/modules/message/bloc/chat_controller.dart';
@@ -179,8 +179,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
         },
         child: Column(
           children: [
-            // Native ad at top of chat list
-            const NativeAdWidget(height: 90),
+            const AdaptiveBannerAdWidget(),
             Expanded(
               child: ValueListenableBuilder<List<ChatMessage>>(
                 valueListenable: context.read<ChatController>().messages,

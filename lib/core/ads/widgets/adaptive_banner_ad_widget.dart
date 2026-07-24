@@ -8,7 +8,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 class AdaptiveBannerAdWidget extends StatefulWidget {
   const AdaptiveBannerAdWidget({
     super.key,
-    this.showPlaceholder = true,
+    this.showPlaceholder = false,
   });
 
   /// When true, shows a visible placeholder while the ad loads or fails.

@@ -2,7 +2,8 @@ import 'package:ed_tech/core/ads/ad_storage.dart';
 import 'package:ed_tech/core/ads/admob_config.dart';
 
 /// Central frequency manager for all full-screen ad types.
-/// TEST MODE: all canShow*() always return true.
+///
+/// Enforces cooldowns, daily caps, session limits, and screen-level blocks.
 class AdFrequencyManager {
   AdFrequencyManager._();
 
@@ -22,9 +23,34 @@ class AdFrequencyManager {
   bool isVideoPlaying = false;
   bool isPaymentFlowActive = false;
 
-  // ---- TEST MODE: always allow ----
+  // ---- Interstitial ----
 
-  bool canShowInterstitial() => true;
+  bool canShowInterstitial() {
+    if (!AdMobConfig.adsEnabled || !AdMobConfig.interstitialEnabled) {
+      return false;
+    }
+
+    if (isFullScreenAdShowing) return false;
+    if (isQuizTaking || isVideoPlaying || isPaymentFlowActive) return false;
+
+    final elapsed = DateTime.now().difference(appStartedAt);
+    if (elapsed < AdMobConfig.minimumTimeAfterAppStart) return false;
+
+    if (lastInterstitialAt != null) {
+      final sinceLast = DateTime.now().difference(lastInterstitialAt!);
+      if (sinceLast < AdMobConfig.minimumInterstitialInterval) return false;
+    }
+
+    if (sessionInterstitialCount >= AdMobConfig.maximumInterstitialPerSession) {
+      return false;
+    }
+
+    if (AdStorage.dailyInterstitialCount >= AdMobConfig.maximumInterstitialPerDay) {
+      return false;
+    }
+
+    return true;
+  }
 
   void recordInterstitialShown() {
     lastInterstitialAt = DateTime.now();
@@ -32,25 +58,79 @@ class AdFrequencyManager {
     AdStorage.dailyInterstitialCount++;
   }
 
-  bool canShowRewarded() => true;
+  // ---- Rewarded ----
+
+  bool canShowRewarded() {
+    if (!AdMobConfig.adsEnabled || !AdMobConfig.rewardedEnabled) return false;
+    if (isFullScreenAdShowing) return false;
+    if (AdStorage.dailyRewardedCount >= AdMobConfig.maximumRewardedAdsPerDay) {
+      return false;
+    }
+    return true;
+  }
 
   void recordRewardedShown() {
     AdStorage.dailyRewardedCount++;
   }
 
-  bool canShowRewardedInterstitial() => true;
+  // ---- Rewarded Interstitial ----
+
+  bool canShowRewardedInterstitial() {
+    if (!AdMobConfig.adsEnabled || !AdMobConfig.rewardedInterstitialEnabled) {
+      return false;
+    }
+    if (isFullScreenAdShowing) return false;
+    if (isQuizTaking || isVideoPlaying || isPaymentFlowActive) return false;
+
+    if (lastRewardedInterstitialAt != null) {
+      if (DateTime.now().difference(lastRewardedInterstitialAt!) <
+          AdMobConfig.minimumRewardedInterstitialInterval) return false;
+    }
+    if (AdStorage.dailyRewardedInterstitialCount >=
+        AdMobConfig.maximumRewardedInterstitialPerDay) return false;
+
+    return true;
+  }
 
   void recordRewardedInterstitialShown() {
     lastRewardedInterstitialAt = DateTime.now();
     AdStorage.dailyRewardedInterstitialCount++;
   }
 
-  bool canShowAppOpen() => true;
+  // ---- App Open ----
+
+  bool canShowAppOpen() {
+    if (!AdMobConfig.adsEnabled || !AdMobConfig.appOpenEnabled) return false;
+    if (isFullScreenAdShowing) return false;
+    if (isQuizTaking || isVideoPlaying || isPaymentFlowActive) return false;
+
+    if (AdStorage.appLaunchCount < AdMobConfig.minimumAppLaunchesBeforeAppOpen) {
+      return false;
+    }
+
+    if (backgroundStartedAt != null) {
+      if (DateTime.now().difference(backgroundStartedAt!) <
+          AdMobConfig.minimumBackgroundDurationForAppOpen) return false;
+    }
+
+    if (lastAppOpenAt != null) {
+      if (DateTime.now().difference(lastAppOpenAt!) <
+          AdMobConfig.minimumAppOpenInterval) return false;
+    }
+
+    if (AdStorage.dailyAppOpenCount >= AdMobConfig.maximumAppOpenPerDay) {
+      return false;
+    }
+
+    return true;
+  }
 
   void recordAppOpenShown() {
     lastAppOpenAt = DateTime.now();
     AdStorage.dailyAppOpenCount++;
   }
+
+  // ---- Background tracking ----
 
   void onPaused() {
     backgroundStartedAt = DateTime.now();
