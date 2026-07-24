@@ -4,11 +4,15 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 /// A widget that displays an Anchored Adaptive Banner Ad.
 ///
-/// Automatically sizes the banner to match the device width.
-/// If the ad fails to load, the widget collapses to zero height
-/// (no empty space is shown).
+/// Shows a placeholder while loading so the ad slot is always visible.
 class AdaptiveBannerAdWidget extends StatefulWidget {
-  const AdaptiveBannerAdWidget({super.key});
+  const AdaptiveBannerAdWidget({
+    super.key,
+    this.showPlaceholder = true,
+  });
+
+  /// When true, shows a visible placeholder while the ad loads or fails.
+  final bool showPlaceholder;
 
   @override
   State<AdaptiveBannerAdWidget> createState() =>
@@ -18,19 +22,22 @@ class AdaptiveBannerAdWidget extends StatefulWidget {
 class _AdaptiveBannerAdWidgetState extends State<AdaptiveBannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
-  bool _isLoadFailed = false;
+  bool _isLoading = true;
   AdSize? _adaptiveSize;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_bannerAd == null && !_isLoadFailed) {
+    if (_bannerAd == null && !_isLoaded) {
       _loadBanner();
     }
   }
 
   Future<void> _loadBanner() async {
-    if (!AdMobConfig.adsEnabled || !AdMobConfig.bannerEnabled) return;
+    if (!AdMobConfig.adsEnabled || !AdMobConfig.bannerEnabled) {
+      setState(() => _isLoading = false);
+      return;
+    }
 
     final size =
         await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
@@ -50,12 +57,15 @@ class _AdaptiveBannerAdWidgetState extends State<AdaptiveBannerAdWidget> {
             ad.dispose();
             return;
           }
-          setState(() => _isLoaded = true);
+          setState(() {
+            _isLoaded = true;
+            _isLoading = false;
+          });
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
           if (!mounted) return;
-          setState(() => _isLoadFailed = true);
+          setState(() => _isLoading = false);
         },
       ),
     );
@@ -71,14 +81,50 @@ class _AdaptiveBannerAdWidgetState extends State<AdaptiveBannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isLoaded || _adaptiveSize == null) return const SizedBox.shrink();
+    if (_isLoaded && _adaptiveSize != null) {
+      return SafeArea(
+        child: SizedBox(
+          width: _adaptiveSize!.width.toDouble(),
+          height: _adaptiveSize!.height.toDouble(),
+          child: AdWidget(ad: _bannerAd!),
+        ),
+      );
+    }
 
-    return SafeArea(
-      child: SizedBox(
-        width: _adaptiveSize!.width.toDouble(),
-        height: _adaptiveSize!.height.toDouble(),
-        child: AdWidget(ad: _bannerAd!),
-      ),
-    );
+    if (widget.showPlaceholder) {
+      return Container(
+        width: MediaQuery.of(context).size.width,
+        height: 60,
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE0E0E0)),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.ad_units, size: 22, color: Color(0xFFFF9800)),
+              SizedBox(height: 4),
+              Text(
+                'Vị trí Banner',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFFFF9800),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '(chưa load được)',
+                style: TextStyle(fontSize: 10, color: Color(0xFFBDBDBD)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 }

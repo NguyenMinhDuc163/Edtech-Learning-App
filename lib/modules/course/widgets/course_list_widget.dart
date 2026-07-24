@@ -357,10 +357,43 @@ class CourseListWidget extends StatelessWidget {
 
       // Insert native ad after every `interval` items
       if (adCount < maxAds && (i + 1) % interval == 0 && i < courses.length - 1) {
+        widgets.add(const SizedBox(height: 8));
         widgets.add(
-          NativeAdWidget(
-            key: ValueKey('native_ad_course_$i'),
-            height: 120,
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  offset: Offset(0, 2),
+                  blurRadius: 8,
+                  color: Color.fromRGBO(0, 0, 0, 0.06),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.colorFF6905.withAlpha(25),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Quảng cáo',
+                    style: AppTextStyles.textContent4.copyWith(
+                      color: AppColors.colorFF6905,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const NativeAdWidget(height: 100),
+              ],
+            ),
           ),
         );
         adCount++;

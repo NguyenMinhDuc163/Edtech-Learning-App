@@ -139,17 +139,17 @@ abstract final class AdMobConfig {
   // NATIVE LIST RULES
   // =========================================================
 
-  static const int courseListNativeInterval = 6;
+  static const int courseListNativeInterval = 3;
 
-  static const int courseListMaximumNativeAds = 2;
+  static const int courseListMaximumNativeAds = 1;
 
-  static const int searchNativePosition = 5;
+  static const int searchNativePosition = 3;
 
-  static const int filterNativePosition = 5;
+  static const int filterNativePosition = 3;
 
-  static const int quizListNativePosition = 5;
+  static const int quizListNativePosition = 3;
 
-  static const int leaderboardNativePosition = 7;
+  static const int leaderboardNativePosition = 5;
 
   // =========================================================
   // PLATFORM HELPERS

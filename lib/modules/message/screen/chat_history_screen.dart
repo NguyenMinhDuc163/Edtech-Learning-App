@@ -197,17 +197,14 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
 
               return Column(
                 children: [
+                  const NativeAdWidget(height: 100),
                   Expanded(
                     child: ListView.separated(
                       controller: _scrollController,
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                       itemCount: state.sessions.length +
-                          (state.hasMore ? 1 : 0) +
-                          (state.sessions.length > 5 ? 1 : 0),
-                      separatorBuilder: (_, index) {
-                        if (index == 4) return const SizedBox(height: 24);
-                        return const SizedBox(height: 14);
-                      },
+                          (state.hasMore ? 1 : 0),
+                      separatorBuilder: (_, __) => const SizedBox(height: 14),
                       itemBuilder: (context, index) {
                         if (index == state.sessions.length) {
                           return const Padding(
@@ -222,19 +219,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                           );
                         }
 
-                        // Insert Native Ad after the 5th conversation
-                        if (index == 5 && state.sessions.length > 5) {
-                          return const Padding(
-                            padding: EdgeInsets.only(bottom: 14),
-                            child: NativeAdWidget(height: 100),
-                          );
-                        }
-
-                        final sessionIndex =
-                            index > 5 && state.sessions.length > 5
-                                ? index - 1
-                                : index;
-                        final session = state.sessions[sessionIndex];
+                        final session = state.sessions[index];
 
                         return _HistoryItem(
                           session: session,

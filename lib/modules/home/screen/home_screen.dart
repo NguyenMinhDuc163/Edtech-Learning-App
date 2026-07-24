@@ -117,7 +117,8 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             const HomeHeaderWidget(),
-            AppGap.h80,
+            const AdaptiveBannerAdWidget(),
+            AppGap.h12,
             Padding(
               padding: AppPad.h20,
               child: HomePromoCarousel(
