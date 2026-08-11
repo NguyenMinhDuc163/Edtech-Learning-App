@@ -4,7 +4,6 @@ import 'package:ed_tech/modules/purchased_courses/bloc/purchased_course_cubit.da
 import 'package:ed_tech/modules/purchased_courses/bloc/purchased_course_state.dart';
 import 'package:ed_tech/modules/purchased_courses/model/purchased_course_response.dart';
 import 'package:ed_tech/modules/course/screen/course_detail_screen.dart';
-import 'package:ed_tech/data/services/user_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class PurchasedCoursesScreen extends StatefulWidget {
@@ -27,9 +26,6 @@ class _PurchasedCoursesScreenState extends State<PurchasedCoursesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isPaymentEnabled =
-        UserService.instance.isPayment?.trim().toUpperCase() == 'Y';
-
     return FunctionScreenTemplate(
       isShowBottomButton: false,
       isShowAppBar: true,
@@ -84,7 +80,9 @@ class _PurchasedCoursesScreenState extends State<PurchasedCoursesScreen> {
 
             return RefreshIndicator(
               onRefresh: () async {
-                await context.read<PurchasedCourseCubit>().getPurchasedCourses();
+                await context
+                    .read<PurchasedCourseCubit>()
+                    .getPurchasedCourses();
               },
               child: ListView.separated(
                 padding: AppPad.h16v12,
@@ -93,8 +91,9 @@ class _PurchasedCoursesScreenState extends State<PurchasedCoursesScreen> {
                 itemBuilder: (context, index) {
                   return _PurchasedCourseCard(
                     course: courses[index],
-                    showPurchaseDate: isPaymentEnabled,
-                    onTap: () => _navigateToCourseDetail(context, courses[index]),
+                    showPurchaseDate: true,
+                    onTap:
+                        () => _navigateToCourseDetail(context, courses[index]),
                   );
                 },
               ),
@@ -122,7 +121,9 @@ class _PurchasedCoursesScreenState extends State<PurchasedCoursesScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      context.read<PurchasedCourseCubit>().getPurchasedCourses();
+                      context
+                          .read<PurchasedCourseCubit>()
+                          .getPurchasedCourses();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
@@ -241,9 +242,8 @@ class _PurchasedCourseCard extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: isCompleted
-                          ? AppColors.success
-                          : AppColors.primary,
+                      color:
+                          isCompleted ? AppColors.success : AppColors.primary,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
@@ -386,9 +386,10 @@ class _PurchasedCourseCard extends StatelessWidget {
                               child: Text(
                                 '${progress.toStringAsFixed(0)}%',
                                 style: AppTextStyles.textContent3.copyWith(
-                                  color: isCompleted
-                                      ? AppColors.success
-                                      : AppColors.primary,
+                                  color:
+                                      isCompleted
+                                          ? AppColors.success
+                                          : AppColors.primary,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -459,40 +460,41 @@ class _PurchasedCourseCard extends StatelessWidget {
                         if (course.category != null)
                           Flexible(
                             child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getColorForCategory(course.category),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: AppColors.primary.withAlpha(50),
-                                width: 1,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
                               ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.category_outlined,
-                                  size: 14,
-                                  color: AppColors.primary,
+                              decoration: BoxDecoration(
+                                color: _getColorForCategory(course.category),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.primary.withAlpha(50),
+                                  width: 1,
                                 ),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    course.category!,
-                                    style: AppTextStyles.textContent3.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.category_outlined,
+                                    size: 14,
+                                    color: AppColors.primary,
                                   ),
-                                ),
-                              ],
-                            ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      course.category!,
+                                      style: AppTextStyles.textContent3
+                                          .copyWith(
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                       ],
@@ -510,26 +512,26 @@ class _PurchasedCourseCard extends StatelessWidget {
   Widget _buildThumbnail() {
     final url = course.thumbnailUrl ?? '';
     if (url.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.school_outlined,
-                    color: AppColors.primary.withAlpha(100),
-                    size: 60,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    course.category ?? 'home_screen.course'.tr(),
-                    style: AppTextStyles.textContent2.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.school_outlined,
+              color: AppColors.primary.withAlpha(100),
+              size: 60,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              course.category ?? 'home_screen.course'.tr(),
+              style: AppTextStyles.textContent2.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
               ),
-            );
+            ),
+          ],
+        ),
+      );
     }
 
     return Stack(
@@ -548,10 +550,11 @@ class _PurchasedCourseCard extends StatelessWidget {
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: AppColors.primary,
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                      : null,
+                  value:
+                      loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
                 ),
               ),
             );
@@ -583,10 +586,7 @@ class _PurchasedCourseCard extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                Colors.black.withAlpha(20),
-              ],
+              colors: [Colors.transparent, Colors.black.withAlpha(20)],
             ),
           ),
         ),
@@ -616,5 +616,4 @@ class _PurchasedCourseCard extends StatelessWidget {
     if (date == null) return '--';
     return DateFormat('dd/MM/yyyy').format(date);
   }
-
 }

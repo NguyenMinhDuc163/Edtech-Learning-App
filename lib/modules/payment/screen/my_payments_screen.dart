@@ -150,7 +150,6 @@ class _PaymentCard extends StatelessWidget {
 
   const _PaymentCard({required this.payment, this.onTap});
 
-
   String _formatDate(String? dateString) {
     if (dateString == null || dateString.isEmpty) return '';
     try {
@@ -185,6 +184,16 @@ class _PaymentCard extends StatelessWidget {
       default:
         return AppColors.coolGray;
     }
+  }
+
+  String _formatAmount() {
+    if (payment.sourceType != 'IAP') return payment.amount.formatCurrency();
+    final value = double.tryParse(payment.amount ?? '');
+    final currency = payment.currency;
+    if (value == null || currency == null || currency.isEmpty) {
+      return payment.amount ?? '-';
+    }
+    return NumberFormat.simpleCurrency(name: currency).format(value);
   }
 
   @override
@@ -270,7 +279,7 @@ class _PaymentCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            payment.amount.formatCurrency(),
+                            _formatAmount(),
                             style: AppTextStyles.textContent1.copyWith(
                               color: AppColors.primary,
                               fontWeight: FontWeight.bold,

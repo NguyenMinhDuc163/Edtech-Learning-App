@@ -57,8 +57,12 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     _selectedDurations = List.from(widget.selectedDurations);
     _currentMinPrice = widget.selectedMinPrice;
     _currentMaxPrice = widget.selectedMaxPrice;
-    _minPriceController = TextEditingController(text: _currentMinPrice.toInt().toString());
-    _maxPriceController = TextEditingController(text: _currentMaxPrice.toInt().toString());
+    _minPriceController = TextEditingController(
+      text: _currentMinPrice.toInt().toString(),
+    );
+    _maxPriceController = TextEditingController(
+      text: _currentMaxPrice.toInt().toString(),
+    );
   }
 
   @override
@@ -89,14 +93,17 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
   }
 
   void _applyFilter() {
-    final showPriceFilter =
-        _shouldShowPriceFilter(UserService.instance.userDataNotifier.value);
-    final minPrice = showPriceFilter
-        ? double.tryParse(_minPriceController.text) ?? widget.minPrice
-        : widget.minPrice;
-    final maxPrice = showPriceFilter
-        ? double.tryParse(_maxPriceController.text) ?? widget.maxPrice
-        : widget.maxPrice;
+    final showPriceFilter = _shouldShowPriceFilter(
+      UserService.instance.userDataNotifier.value,
+    );
+    final minPrice =
+        showPriceFilter
+            ? double.tryParse(_minPriceController.text) ?? widget.minPrice
+            : widget.minPrice;
+    final maxPrice =
+        showPriceFilter
+            ? double.tryParse(_maxPriceController.text) ?? widget.maxPrice
+            : widget.maxPrice;
 
     widget.onApplyFilter(
       _selectedCategories,
@@ -120,13 +127,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     }
   }
 
-  bool _shouldShowPriceFilter(UserData? userData) {
-    final isPayment =
-        userData?.isPayment?.trim().toUpperCase() ??
-        UserService.instance.isPayment?.trim().toUpperCase();
-
-    return isPayment == 'Y';
-  }
+  bool _shouldShowPriceFilter(UserData? userData) => false;
 
   @override
   Widget build(BuildContext context) {
@@ -319,7 +320,10 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               hintText: '0',
               hintStyle: AppTextStyles.inputHintText,
             ),

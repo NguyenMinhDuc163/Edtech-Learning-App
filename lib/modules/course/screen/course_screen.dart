@@ -117,12 +117,16 @@ class _CourseScreenState extends State<CourseScreen> {
                             child: CircleAvatar(
                               radius: 22,
                               backgroundColor: Colors.grey[200],
-                              backgroundImage: userData?.avatarUrl != null && userData!.avatarUrl!.isNotEmpty
-                                  ? NetworkImage(userData.avatarUrl!)
-                                  : null,
-                              child: userData?.avatarUrl == null || userData!.avatarUrl!.isEmpty
-                                  ? const Icon(Icons.person)
-                                  : null,
+                              backgroundImage:
+                                  userData?.avatarUrl != null &&
+                                          userData!.avatarUrl!.isNotEmpty
+                                      ? NetworkImage(userData.avatarUrl!)
+                                      : null,
+                              child:
+                                  userData?.avatarUrl == null ||
+                                          userData!.avatarUrl!.isEmpty
+                                      ? const Icon(Icons.person)
+                                      : null,
                             ),
                           );
                         },
@@ -303,12 +307,16 @@ class _CourseScreenState extends State<CourseScreen> {
                             child: CircleAvatar(
                               radius: 22,
                               backgroundColor: Colors.grey[200],
-                              backgroundImage: userData?.avatarUrl != null && userData!.avatarUrl!.isNotEmpty
-                                  ? NetworkImage(userData.avatarUrl!)
-                                  : null,
-                              child: userData?.avatarUrl == null || userData!.avatarUrl!.isEmpty
-                                  ? const Icon(Icons.person)
-                                  : null,
+                              backgroundImage:
+                                  userData?.avatarUrl != null &&
+                                          userData!.avatarUrl!.isNotEmpty
+                                      ? NetworkImage(userData.avatarUrl!)
+                                      : null,
+                              child:
+                                  userData?.avatarUrl == null ||
+                                          userData!.avatarUrl!.isEmpty
+                                      ? const Icon(Icons.person)
+                                      : null,
                             ),
                           );
                         },
@@ -416,8 +424,7 @@ class _FilterResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showPrice =
-        UserService.instance.isPayment?.trim().toUpperCase() == 'Y';
+    const showPrice = false;
 
     return GestureDetector(
       onTap: onTap,

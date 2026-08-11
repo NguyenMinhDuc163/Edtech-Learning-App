@@ -235,7 +235,13 @@
     "invoice_not_found": "Invoice not found",
     "hint_city": "New York",
     "hint_phone": "+1 800 123 4567",
-    "hint_address": "123 Main Street, City"
+    "hint_address": "123 Main Street, City",
+    "iap_unavailable": "This course is not currently available for in-app purchase",
+    "iap_pending": "The store is processing this purchase. Access will update automatically when it completes.",
+    "store_price": "Store price",
+    "store_managed_notice": "Payment is securely processed by the App Store or Google Play.",
+    "pay_with_store": "Pay with store",
+    "invalid_order": "Invalid order information"
   },
   "review": {
     "title": "Reviews",
@@ -511,7 +517,11 @@
     "grade": "Grade",
     "subject": "Subject Specialty",
     "certificates": "Certificates & Achievements",
-    "view_certificate": "View Certificate"
+    "view_certificate": "View Certificate",
+    "restore_purchases": "Restore purchases",
+    "restore_purchases_hint": "Restore courses purchased with this store account",
+    "restore_success": "Previous purchases have been synchronized",
+    "restore_empty": "No purchases were found to restore"
   },
   "edit_profile": {
     "title": "Edit Profile",

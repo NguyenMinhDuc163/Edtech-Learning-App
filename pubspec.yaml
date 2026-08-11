@@ -91,6 +91,7 @@ dependencies:
 
   # AdMob
   google_mobile_ads: ^5.3.0
+  purchases_flutter: ^10.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:ed_tech/modules/payment/screen/order_confirmation_screen.dart';
@@ -14,16 +15,16 @@ import 'package:ed_tech/modules/assessment/screen/quiz_taking_screen.dart';
 import 'package:ed_tech/modules/assessment/models/quiz_model.dart';
 import 'package:ed_tech/modules/home/repository/home_repo.dart';
 import 'package:ed_tech/data/api_client.dart';
-import 'package:ed_tech/data/services/user_service.dart';
 import 'package:ed_tech/modules/message/repository/chat_bot_repo.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
-import 'package:ed_tech/utils/helpers/currency_extension.dart';
 import 'package:ed_tech/core/constants/app_constants.dart';
 import 'package:ed_tech/core/constants/ai_consent_constants.dart';
 import 'package:ed_tech/core/constants/video_tracking_action.dart';
 import 'package:sp_util/sp_util.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ed_tech/modules/iap/bloc/iap_cubit.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   static const String routeName = '/CourseDetailScreen';
@@ -40,7 +41,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     super.initState();
     // Gọi API chỉ 1 lần khi widget được khởi tạo
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       if (args != null) {
         final String courseId = args['courseId'] ?? '';
         context.read<CourseCubit>().getCourseDetail(courseId);
@@ -59,7 +61,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
     final String courseId = args['courseId'] ?? '';
     final String title = args['title'] ?? 'course.untitled'.tr();
-    final String instructor = args['instructor'] ?? 'course.unknown_teacher'.tr();
+    final String instructor =
+        args['instructor'] ?? 'course.unknown_teacher'.tr();
     final String price = args['price'] ?? '0';
     final String duration = args['duration'] ?? '0h 0m';
     final String? imageUrl = args['imageUrl'];
@@ -132,21 +135,28 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
   bool _showBottomButton = true;
   bool _isDescriptionExpanded = false;
   bool _isShowingAiConsentDialog = false;
-  final DraggableScrollableController _sheetController = DraggableScrollableController();
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
   String? _currentContentId;
-
-  String? get _paymentStatus =>
-      UserService.instance.isPayment?.trim().toUpperCase();
-
-  bool get _isPaymentEnabled {
-    return _paymentStatus == 'Y';
-  }
+  String? _loadedProductId;
+  bool _freeEnrollmentRequested = false;
 
   String get _serverAccessLevel => widget.courseDetail?.accessLevel ?? 'FREE';
 
-  bool get _hasFullAccess {
-    if (!_isPaymentEnabled) return true;
-    return _serverAccessLevel == 'FULL';
+  bool get _hasFullAccess => _serverAccessLevel == 'FULL';
+
+  bool get _canBuy =>
+      kIsWeb
+          ? widget.courseDetail?.isPaid == true && !_hasFullAccess
+          : widget.courseDetail?.purchase?.isAvailable == true;
+
+  StoreProduct? get _storeProduct {
+    if (kIsWeb) return null;
+    final state = context.read<IapCubit>().state;
+    if (state is IapReady) return state.product;
+    if (state is IapPurchasing) return state.product;
+    if (state is IapFailure) return state.product;
+    return null;
   }
 
   String get _effectiveAccessLevel =>
@@ -156,6 +166,36 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
   void initState() {
     super.initState();
     _sheetController.addListener(_onSheetChanged);
+    _initializeCommerce();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CourseDetailContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.courseDetail != widget.courseDetail) _initializeCommerce();
+  }
+
+  void _initializeCommerce() {
+    if (!_freeEnrollmentRequested &&
+        widget.courseDetail?.isPaid == false &&
+        widget.courseDetail?.purchase?.owned != true) {
+      _freeEnrollmentRequested = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<CourseCubit>().enrollFree(widget.courseId);
+      });
+    }
+    if (!kIsWeb) {
+      final productId =
+          widget.courseDetail?.purchase?.mobileIap?.productId as String?;
+      if (productId != null &&
+          productId.isNotEmpty &&
+          productId != _loadedProductId) {
+        _loadedProductId = productId;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) context.read<IapCubit>().loadProduct(productId);
+        });
+      }
+    }
   }
 
   @override
@@ -182,19 +222,22 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => CourseLessonBottomSheet(
-        courseTitle: widget.title,
-        sections: sections,
-        accessLevel: _effectiveAccessLevel,
-        onPlayVideo: (videoUrl, title, contentId) => _playVideo(context, videoUrl, title, contentId),
-        onContentSelected: (contentId) {
-          if (contentId != null) {
-            setState(() {
-              _currentContentId = contentId;
-            });
-          }
-        },
-      ),
+      builder:
+          (context) => CourseLessonBottomSheet(
+            courseTitle: widget.title,
+            sections: sections,
+            accessLevel: _effectiveAccessLevel,
+            onPlayVideo:
+                (videoUrl, title, contentId) =>
+                    _playVideo(context, videoUrl, title, contentId),
+            onContentSelected: (contentId) {
+              if (contentId != null) {
+                setState(() {
+                  _currentContentId = contentId;
+                });
+              }
+            },
+          ),
     );
   }
 
@@ -232,7 +275,12 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
     return null;
   }
 
-  void _playVideo(BuildContext context, String videoUrl, String title, String? contentId) {
+  void _playVideo(
+    BuildContext context,
+    String videoUrl,
+    String title,
+    String? contentId,
+  ) {
     if (contentId != null) {
       setState(() {
         _currentContentId = contentId;
@@ -241,12 +289,13 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _VideoPlayerScreen(
-          courseId: widget.courseId,
-          videoUrl: videoUrl,
-          title: title,
-          contentId: contentId,
-        ),
+        builder:
+            (context) => _VideoPlayerScreen(
+              courseId: widget.courseId,
+              videoUrl: videoUrl,
+              title: title,
+              contentId: contentId,
+            ),
       ),
     );
   }
@@ -301,7 +350,10 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
               topLeft: Radius.circular(50),
               topRight: Radius.circular(50),
             ),
-            border: Border.all(color: AppColors.lightGray.withOpacity(0.3), width: 1),
+            border: Border.all(
+              color: AppColors.lightGray.withOpacity(0.3),
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
                 offset: const Offset(0, -2),
@@ -378,12 +430,19 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.colorFF6905),
                 ),
-                child: const Icon(Icons.star_border, color: AppColors.colorFF6905, size: 24),
+                child: const Icon(
+                  Icons.star_border,
+                  color: AppColors.colorFF6905,
+                  size: 24,
+                ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: hasFullAccess ? _buildEnrolledButton(context) : _buildBuyButton(context),
+              child:
+                  hasFullAccess
+                      ? _buildEnrolledButton(context)
+                      : _buildBuyButton(context),
             ),
           ],
         ),
@@ -398,108 +457,140 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
     return Positioned(
       bottom: 24,
       right: 24,
-      child: hasFullAccess
-          ? SpeedDial(
-              icon: Icons.menu,
-              activeIcon: Icons.close,
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.white,
-              activeBackgroundColor: AppColors.primary,
-              activeForegroundColor: AppColors.white,
-              elevation: 6,
-              overlayOpacity: 0.4,
-              overlayColor: AppColors.text,
-              spacing: 12,
-              spaceBetweenChildren: 12,
-              children: [
-                SpeedDialChild(
-                  child: const Icon(Icons.play_circle_filled, color: AppColors.primary),
-                  backgroundColor: AppColors.white,
-                  foregroundColor: AppColors.primary,
-                  label: 'course.continue_learning_short'.tr(),
-                  labelStyle: AppTextStyles.textContent2.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                  labelBackgroundColor: AppColors.white,
-                  onTap: () => _showLessonBottomSheet(context),
-                ),
-                SpeedDialChild(
-                  child: const Icon(Icons.star_border, color: AppColors.primary),
-                  backgroundColor: AppColors.white,
-                  foregroundColor: AppColors.primary,
-                  label: 'course.review_course'.tr(),
-                  labelStyle: AppTextStyles.textContent2.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                  labelBackgroundColor: AppColors.white,
-                  onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      ReviewScreen.routeName,
-                      arguments: {'courseId': widget.courseId},
-                    );
-                  },
-                ),
-                SpeedDialChild(
-                  child: const Icon(Icons.chat_bubble_outline, color: AppColors.primary),
-                  backgroundColor: AppColors.white,
-                  foregroundColor: AppColors.primary,
-                  label: 'chat.chat_with_ai'.tr(),
-                  labelStyle: AppTextStyles.textContent2.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                  labelBackgroundColor: AppColors.white,
-                  onTap: () => _openChatBubbleWithConsent(context),
-                ),
-                if (_paymentStatus == 'Y' && daysLeftToCancel > 0)
+      child:
+          hasFullAccess
+              ? SpeedDial(
+                icon: Icons.menu,
+                activeIcon: Icons.close,
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+                activeBackgroundColor: AppColors.primary,
+                activeForegroundColor: AppColors.white,
+                elevation: 6,
+                overlayOpacity: 0.4,
+                overlayColor: AppColors.text,
+                spacing: 12,
+                spaceBetweenChildren: 12,
+                children: [
                   SpeedDialChild(
-                    child: const Icon(Icons.cancel_outlined, color: AppColors.error),
+                    child: const Icon(
+                      Icons.play_circle_filled,
+                      color: AppColors.primary,
+                    ),
                     backgroundColor: AppColors.white,
-                    foregroundColor: AppColors.error,
-                    label: 'course.cancel_course_short'.tr(),
+                    foregroundColor: AppColors.primary,
+                    label: 'course.continue_learning_short'.tr(),
                     labelStyle: AppTextStyles.textContent2.copyWith(
                       fontWeight: FontWeight.w500,
-                      color: AppColors.error,
                     ),
                     labelBackgroundColor: AppColors.white,
-                    onTap: () => _showCancelCourseDialog(context, daysLeftToCancel),
+                    onTap: () => _showLessonBottomSheet(context),
                   ),
-              ],
-            )
-          : FloatingActionButton.extended(
-              onPressed: () {
-                if (hasFullAccess) {
-                  _showLessonBottomSheet(context);
-                } else {
-                  _handleBuyAction(context);
-                }
-              },
-              backgroundColor: hasFullAccess ? AppColors.success : AppColors.primary,
-              elevation: 6,
-              label: Row(
-                children: [
-                  Icon(
-                    hasFullAccess ? Icons.play_circle_filled : Icons.shopping_cart,
-                    color: AppColors.white,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    hasFullAccess
-                        ? 'course.continue_learning'.tr()
-                        : 'course.buy_now'.tr(),
-                    style: AppTextStyles.button.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                  SpeedDialChild(
+                    child: const Icon(
+                      Icons.star_border,
+                      color: AppColors.primary,
                     ),
+                    backgroundColor: AppColors.white,
+                    foregroundColor: AppColors.primary,
+                    label: 'course.review_course'.tr(),
+                    labelStyle: AppTextStyles.textContent2.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    labelBackgroundColor: AppColors.white,
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        ReviewScreen.routeName,
+                        arguments: {'courseId': widget.courseId},
+                      );
+                    },
                   ),
+                  SpeedDialChild(
+                    child: const Icon(
+                      Icons.chat_bubble_outline,
+                      color: AppColors.primary,
+                    ),
+                    backgroundColor: AppColors.white,
+                    foregroundColor: AppColors.primary,
+                    label: 'chat.chat_with_ai'.tr(),
+                    labelStyle: AppTextStyles.textContent2.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    labelBackgroundColor: AppColors.white,
+                    onTap: () => _openChatBubbleWithConsent(context),
+                  ),
+                  if (daysLeftToCancel > 0)
+                    SpeedDialChild(
+                      child: const Icon(
+                        Icons.cancel_outlined,
+                        color: AppColors.error,
+                      ),
+                      backgroundColor: AppColors.white,
+                      foregroundColor: AppColors.error,
+                      label: 'course.cancel_course_short'.tr(),
+                      labelStyle: AppTextStyles.textContent2.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.error,
+                      ),
+                      labelBackgroundColor: AppColors.white,
+                      onTap:
+                          () => _showCancelCourseDialog(
+                            context,
+                            daysLeftToCancel,
+                          ),
+                    ),
                 ],
+              )
+              : FloatingActionButton.extended(
+                onPressed: () {
+                  if (hasFullAccess) {
+                    _showLessonBottomSheet(context);
+                  } else {
+                    _handleBuyAction(context);
+                  }
+                },
+                backgroundColor:
+                    hasFullAccess ? AppColors.success : AppColors.primary,
+                elevation: 6,
+                label: Row(
+                  children: [
+                    Icon(
+                      hasFullAccess
+                          ? Icons.play_circle_filled
+                          : Icons.shopping_cart,
+                      color: AppColors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      hasFullAccess
+                          ? 'course.continue_learning'.tr()
+                          : 'course.buy_now'.tr(),
+                      style: AppTextStyles.button.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
     );
   }
 
   Future<void> _handleBuyAction(BuildContext context) async {
+    final productId =
+        widget.courseDetail?.purchase?.mobileIap?.productId as String?;
+    if (!_canBuy ||
+        (!kIsWeb &&
+            (productId == null ||
+                productId.isEmpty ||
+                _storeProduct == null))) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('payment.iap_unavailable'.tr())));
+      return;
+    }
     final result = await Navigator.pushNamed(
       context,
       OrderConfirmationScreen.routeName,
@@ -508,6 +599,8 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
         'title': widget.title,
         'instructor': widget.instructor,
         'price': widget.price,
+        'productId': productId,
+        'storePrice': _storeProduct?.priceString,
         'duration': widget.duration,
         'thumbnailUrl': widget.courseDetail?.thumbnailUrl ?? widget.imageUrl,
       },
@@ -540,11 +633,12 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (bottomSheetContext) => _ChatBubbleOverlay(
-        courseId: widget.courseId,
-        courseTitle: widget.title,
-        contentId: _currentContentId,
-      ),
+      builder:
+          (bottomSheetContext) => _ChatBubbleOverlay(
+            courseId: widget.courseId,
+            courseTitle: widget.title,
+            contentId: _currentContentId,
+          ),
     );
   }
 
@@ -555,76 +649,79 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
     final accepted = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'chat.ai_consent_title'.tr(),
-          style: AppTextStyles.textStyleDefaultBold,
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildAiConsentText('chat.ai_consent_description'),
-              _buildAiConsentText('chat.ai_consent_data_sent'),
-              _buildAiConsentText('chat.ai_consent_sent_to'),
-              _buildAiConsentText('chat.ai_consent_purpose'),
-              _buildAiConsentText('chat.ai_consent_privacy_notice'),
-              _buildAiConsentText('chat.ai_consent_permission'),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _openPrivacyPolicy(dialogContext),
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: Text('chat.ai_consent_privacy_policy'.tr()),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+      builder:
+          (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'chat.ai_consent_title'.tr(),
+              style: AppTextStyles.textStyleDefaultBold,
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildAiConsentText('chat.ai_consent_description'),
+                  _buildAiConsentText('chat.ai_consent_data_sent'),
+                  _buildAiConsentText('chat.ai_consent_sent_to'),
+                  _buildAiConsentText('chat.ai_consent_purpose'),
+                  _buildAiConsentText('chat.ai_consent_privacy_notice'),
+                  _buildAiConsentText('chat.ai_consent_permission'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _openPrivacyPolicy(dialogContext),
+                      icon: const Icon(Icons.open_in_new, size: 18),
+                      label: Text('chat.ai_consent_privacy_policy'.tr()),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     ),
                   ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(
+                  'chat.ai_consent_cancel'.tr(),
+                  style: AppTextStyles.textButton.copyWith(
+                    color: AppColors.coolGray,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await SpUtil.putString(
+                    AiConsentConstants.consentVersionStorageKey,
+                    AiConsentConstants.currentConsentVersion,
+                  );
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext, true);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.white,
+                ),
+                child: Text(
+                  'chat.ai_consent_confirm'.tr(),
+                  style: AppTextStyles.button,
                 ),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(
-              'chat.ai_consent_cancel'.tr(),
-              style: AppTextStyles.textButton.copyWith(
-                color: AppColors.coolGray,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await SpUtil.putString(
-                AiConsentConstants.consentVersionStorageKey,
-                AiConsentConstants.currentConsentVersion,
-              );
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext, true);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.white,
-            ),
-            child: Text(
-              'chat.ai_consent_confirm'.tr(),
-              style: AppTextStyles.button,
-            ),
-          ),
-        ],
-      ),
     );
 
     _isShowingAiConsentDialog = false;
@@ -666,14 +763,15 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BlocProvider.value(
-          value: courseCubit,
-          child: CourseCancellationScreen(
-            courseId: widget.courseId,
-            courseTitle: widget.title,
-            daysLeftToCancel: daysLeft,
-          ),
-        ),
+        builder:
+            (context) => BlocProvider.value(
+              value: courseCubit,
+              child: CourseCancellationScreen(
+                courseId: widget.courseId,
+                courseTitle: widget.title,
+                daysLeftToCancel: daysLeft,
+              ),
+            ),
       ),
     );
 
@@ -683,6 +781,9 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
   }
 
   Widget _buildBuyButton(BuildContext context) {
+    final iapState = kIsWeb ? null : context.watch<IapCubit>().state;
+    final productReady = kIsWeb || iapState is IapReady;
+    final loading = iapState is IapLoading;
     return Container(
       height: 50,
       decoration: BoxDecoration(
@@ -701,7 +802,17 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
         ],
       ),
       child: TextButton(
-        onPressed: () => _handleBuyAction(context),
+        onPressed:
+            productReady
+                ? () => _handleBuyAction(context)
+                : iapState is IapFailure
+                ? () {
+                  final id =
+                      widget.courseDetail?.purchase?.mobileIap?.productId
+                          as String?;
+                  if (id != null) context.read<IapCubit>().loadProduct(id);
+                }
+                : null,
         style: TextButton.styleFrom(
           backgroundColor: Colors.transparent,
           shape: RoundedRectangleBorder(
@@ -712,18 +823,14 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'course.buy_now'.tr(),
+              loading ? 'payment.loading'.tr() : 'course.buy_now'.tr(),
               style: AppTextStyles.button.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(
-              Icons.arrow_forward,
-              color: AppColors.white,
-              size: 20,
-            ),
+            const Icon(Icons.arrow_forward, color: AppColors.white, size: 20),
           ],
         ),
       ),
@@ -737,10 +844,7 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [
-            AppColors.success,
-            AppColors.success.withAlpha(204),
-          ],
+          colors: [AppColors.success, AppColors.success.withAlpha(204)],
         ),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
@@ -764,11 +868,7 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.check_circle,
-              color: AppColors.white,
-              size: 20,
-            ),
+            const Icon(Icons.check_circle, color: AppColors.white, size: 20),
             const SizedBox(width: 8),
             Text(
               'course.continue_learning'.tr(),
@@ -794,15 +894,19 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
           Expanded(
             child: Text(
               widget.title,
-              style: AppTextStyles.textHeader2.copyWith(fontWeight: FontWeight.bold),
+              style: AppTextStyles.textHeader2.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (_isPaymentEnabled && !hasFullAccess) ...[
+          if (!hasFullAccess && _canBuy) ...[
             const SizedBox(width: 16),
             Text(
-              widget.price.formatCurrency(),
+              kIsWeb
+                  ? widget.price
+                  : (_storeProduct?.priceString ?? 'payment.store_price'.tr()),
               style: AppTextStyles.textHeader2.copyWith(
                 color: AppColors.primary,
                 fontWeight: FontWeight.bold,
@@ -848,7 +952,9 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
                       ),
                     ),
                     Icon(
-                      _isDescriptionExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      _isDescriptionExpanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
                       color: AppColors.color8F959E,
                     ),
                   ],
@@ -883,7 +989,8 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
   Widget _buildLessonsPreviewSection(BuildContext context) {
     final sections = widget.courseDetail?.sections ?? [];
     final totalLessons = _getTotalLessonsCount(sections);
-    final sectionsToShow = totalLessons > 5 ? sections.take(2).toList() : sections;
+    final sectionsToShow =
+        totalLessons > 5 ? sections.take(2).toList() : sections;
     final hasMore = totalLessons > 5;
 
     return Padding(
@@ -893,18 +1000,21 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
         children: [
           // Text('course.lessons_title'.tr(), style: AppTextStyles.textHeader3.copyWith(fontWeight: FontWeight.bold)),
           // const SizedBox(height: 16),
-
-          ...sectionsToShow.map((section) => _SectionItem(
-            section: section,
-            onPlayVideo: (videoUrl, title, contentId) => _playVideo(context, videoUrl, title, contentId),
-            onContentSelected: (contentId) {
-              if (contentId != null) {
-                setState(() {
-                  _currentContentId = contentId;
-                });
-              }
-            },
-          )),
+          ...sectionsToShow.map(
+            (section) => _SectionItem(
+              section: section,
+              onPlayVideo:
+                  (videoUrl, title, contentId) =>
+                      _playVideo(context, videoUrl, title, contentId),
+              onContentSelected: (contentId) {
+                if (contentId != null) {
+                  setState(() {
+                    _currentContentId = contentId;
+                  });
+                }
+              },
+            ),
+          ),
 
           if (hasMore) ...[
             const SizedBox(height: 16),
@@ -920,7 +1030,9 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
                 child: Text(
                   'course.view_all_lessons'.tr(),
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.textButton.copyWith(color: AppColors.primary),
+                  style: AppTextStyles.textButton.copyWith(
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ),
@@ -937,7 +1049,6 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
     }
     return count;
   }
-
 }
 
 class _InlineVideoPlayer extends StatefulWidget {
@@ -978,19 +1089,31 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
     _videoStateTimer?.cancel();
 
     if (_isPlaying && _playingStartTime != null) {
-      _totalPlayingDuration += DateTime.now().difference(_playingStartTime!).inSeconds;
+      _totalPlayingDuration +=
+          DateTime.now().difference(_playingStartTime!).inSeconds;
     }
 
-    if (widget.contentId != null && _videoPlayerController != null && _videoPlayerController!.value.isInitialized) {
-      final currentPosition = _videoPlayerController!.value.position.inSeconds.toDouble();
+    if (widget.contentId != null &&
+        _videoPlayerController != null &&
+        _videoPlayerController!.value.isInitialized) {
+      final currentPosition =
+          _videoPlayerController!.value.position.inSeconds.toDouble();
       final totalDuration = _videoPlayerController!.value.duration.inSeconds;
 
       if (totalDuration > 0) {
         final progress = currentPosition / totalDuration;
         if (progress >= AppConst.videoCompleteThreshold) {
-          _trackVideoProgress(VideoTrackingAction.videoComplete, currentPosition, totalDuration);
+          _trackVideoProgress(
+            VideoTrackingAction.videoComplete,
+            currentPosition,
+            totalDuration,
+          );
         } else if (_hasStarted) {
-          _trackVideoProgress(VideoTrackingAction.videoPause, currentPosition, totalDuration);
+          _trackVideoProgress(
+            VideoTrackingAction.videoPause,
+            currentPosition,
+            totalDuration,
+          );
         }
       }
     }
@@ -1000,7 +1123,11 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
     super.dispose();
   }
 
-  void _trackVideoProgress(VideoTrackingAction action, double currentPosition, int totalDuration) {
+  void _trackVideoProgress(
+    VideoTrackingAction action,
+    double currentPosition,
+    int totalDuration,
+  ) {
     if (widget.contentId == null) return;
 
     try {
@@ -1019,21 +1146,36 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
   void _startPlayingTracking() {
     _playingStartTime = DateTime.now();
 
-    if (!_hasStarted && _videoPlayerController != null && _videoPlayerController!.value.isInitialized) {
+    if (!_hasStarted &&
+        _videoPlayerController != null &&
+        _videoPlayerController!.value.isInitialized) {
       _hasStarted = true;
-      final currentPosition = _videoPlayerController!.value.position.inSeconds.toDouble();
+      final currentPosition =
+          _videoPlayerController!.value.position.inSeconds.toDouble();
       final totalDuration = _videoPlayerController!.value.duration.inSeconds;
-      _trackVideoProgress(VideoTrackingAction.videoStart, currentPosition, totalDuration);
+      _trackVideoProgress(
+        VideoTrackingAction.videoStart,
+        currentPosition,
+        totalDuration,
+      );
     }
 
     _trackingTimer?.cancel();
     _trackingTimer = Timer.periodic(
       Duration(seconds: AppConst.videoTrackingIntervalInSeconds),
       (_) {
-        if (_videoPlayerController != null && _videoPlayerController!.value.isInitialized && _videoPlayerController!.value.isPlaying) {
-          final currentPosition = _videoPlayerController!.value.position.inSeconds.toDouble();
-          final totalDuration = _videoPlayerController!.value.duration.inSeconds;
-          _trackVideoProgress(VideoTrackingAction.videoWatching, currentPosition, totalDuration);
+        if (_videoPlayerController != null &&
+            _videoPlayerController!.value.isInitialized &&
+            _videoPlayerController!.value.isPlaying) {
+          final currentPosition =
+              _videoPlayerController!.value.position.inSeconds.toDouble();
+          final totalDuration =
+              _videoPlayerController!.value.duration.inSeconds;
+          _trackVideoProgress(
+            VideoTrackingAction.videoWatching,
+            currentPosition,
+            totalDuration,
+          );
         }
       },
     );
@@ -1041,21 +1183,30 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
 
   void _stopPlayingTracking() {
     if (_playingStartTime != null) {
-      _totalPlayingDuration += DateTime.now().difference(_playingStartTime!).inSeconds;
+      _totalPlayingDuration +=
+          DateTime.now().difference(_playingStartTime!).inSeconds;
       _playingStartTime = null;
     }
     _trackingTimer?.cancel();
 
-    if (_hasStarted && _videoPlayerController != null && _videoPlayerController!.value.isInitialized) {
-      final currentPosition = _videoPlayerController!.value.position.inSeconds.toDouble();
+    if (_hasStarted &&
+        _videoPlayerController != null &&
+        _videoPlayerController!.value.isInitialized) {
+      final currentPosition =
+          _videoPlayerController!.value.position.inSeconds.toDouble();
       final totalDuration = _videoPlayerController!.value.duration.inSeconds;
-      _trackVideoProgress(VideoTrackingAction.videoPause, currentPosition, totalDuration);
+      _trackVideoProgress(
+        VideoTrackingAction.videoPause,
+        currentPosition,
+        totalDuration,
+      );
     }
   }
 
   void _monitorVideoState() {
     _videoStateTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      if (_videoPlayerController != null && _videoPlayerController!.value.isInitialized) {
+      if (_videoPlayerController != null &&
+          _videoPlayerController!.value.isInitialized) {
         final isCurrentlyPlaying = _videoPlayerController!.value.isPlaying;
 
         if (isCurrentlyPlaying != _lastPlayingState) {
@@ -1108,12 +1259,13 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _VideoPlayerScreen(
-          courseId: widget.courseId,
-          videoUrl: widget.videoUrl!,
-          title: widget.title,
-          contentId: widget.contentId,
-        ),
+        builder:
+            (context) => _VideoPlayerScreen(
+              courseId: widget.courseId,
+              videoUrl: widget.videoUrl!,
+              title: widget.title,
+              contentId: widget.contentId,
+            ),
       ),
     );
   }
@@ -1126,36 +1278,35 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
       child: Stack(
         children: [
           if (_isPlaying && _chewieController != null)
-            Positioned.fill(
-              child: Chewie(controller: _chewieController!),
-            )
+            Positioned.fill(child: Chewie(controller: _chewieController!))
           else
             Positioned.fill(
-              child: widget.thumbnail != null
-                  ? Image.network(
-                      widget.thumbnail!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFFFFEBF0), Color(0xFFFFF0F5)],
+              child:
+                  widget.thumbnail != null
+                      ? Image.network(
+                        widget.thumbnail!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFFFFEBF0), Color(0xFFFFF0F5)],
+                              ),
                             ),
+                          );
+                        },
+                      )
+                      : Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFFFFEBF0), Color(0xFFFFF0F5)],
                           ),
-                        );
-                      },
-                    )
-                  : Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFFFFEBF0), Color(0xFFFFF0F5)],
                         ),
                       ),
-                    ),
             ),
 
           if (!_isPlaying)
@@ -1187,7 +1338,11 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
                   color: Colors.black.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ),
           ),
@@ -1225,7 +1380,11 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
                     color: Colors.black.withOpacity(0.7),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.fullscreen, color: Colors.white, size: 24),
+                  child: const Icon(
+                    Icons.fullscreen,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
               ),
             ),
@@ -1314,19 +1473,30 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
     _videoStateTimer?.cancel();
 
     if (_lastPlayingState && _playingStartTime != null) {
-      _totalPlayingDuration += DateTime.now().difference(_playingStartTime!).inSeconds;
+      _totalPlayingDuration +=
+          DateTime.now().difference(_playingStartTime!).inSeconds;
     }
 
-    if (widget.contentId != null && _videoPlayerController.value.isInitialized) {
-      final currentPosition = _videoPlayerController.value.position.inSeconds.toDouble();
+    if (widget.contentId != null &&
+        _videoPlayerController.value.isInitialized) {
+      final currentPosition =
+          _videoPlayerController.value.position.inSeconds.toDouble();
       final totalDuration = _videoPlayerController.value.duration.inSeconds;
 
       if (totalDuration > 0) {
         final progress = currentPosition / totalDuration;
         if (progress >= AppConst.videoCompleteThreshold) {
-          _trackVideoProgress(VideoTrackingAction.videoComplete, currentPosition, totalDuration);
+          _trackVideoProgress(
+            VideoTrackingAction.videoComplete,
+            currentPosition,
+            totalDuration,
+          );
         } else if (_hasStarted) {
-          _trackVideoProgress(VideoTrackingAction.videoPause, currentPosition, totalDuration);
+          _trackVideoProgress(
+            VideoTrackingAction.videoPause,
+            currentPosition,
+            totalDuration,
+          );
         }
       }
     }
@@ -1342,7 +1512,11 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
     super.dispose();
   }
 
-  void _trackVideoProgress(VideoTrackingAction action, double currentPosition, int totalDuration) {
+  void _trackVideoProgress(
+    VideoTrackingAction action,
+    double currentPosition,
+    int totalDuration,
+  ) {
     if (widget.contentId == null) return;
 
     try {
@@ -1363,19 +1537,30 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
 
     if (!_hasStarted && _videoPlayerController.value.isInitialized) {
       _hasStarted = true;
-      final currentPosition = _videoPlayerController.value.position.inSeconds.toDouble();
+      final currentPosition =
+          _videoPlayerController.value.position.inSeconds.toDouble();
       final totalDuration = _videoPlayerController.value.duration.inSeconds;
-      _trackVideoProgress(VideoTrackingAction.videoStart, currentPosition, totalDuration);
+      _trackVideoProgress(
+        VideoTrackingAction.videoStart,
+        currentPosition,
+        totalDuration,
+      );
     }
 
     _trackingTimer?.cancel();
     _trackingTimer = Timer.periodic(
       Duration(seconds: AppConst.videoTrackingIntervalInSeconds),
       (_) {
-        if (_videoPlayerController.value.isInitialized && _videoPlayerController.value.isPlaying) {
-          final currentPosition = _videoPlayerController.value.position.inSeconds.toDouble();
+        if (_videoPlayerController.value.isInitialized &&
+            _videoPlayerController.value.isPlaying) {
+          final currentPosition =
+              _videoPlayerController.value.position.inSeconds.toDouble();
           final totalDuration = _videoPlayerController.value.duration.inSeconds;
-          _trackVideoProgress(VideoTrackingAction.videoWatching, currentPosition, totalDuration);
+          _trackVideoProgress(
+            VideoTrackingAction.videoWatching,
+            currentPosition,
+            totalDuration,
+          );
         }
       },
     );
@@ -1383,15 +1568,21 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
 
   void _stopPlayingTracking() {
     if (_playingStartTime != null) {
-      _totalPlayingDuration += DateTime.now().difference(_playingStartTime!).inSeconds;
+      _totalPlayingDuration +=
+          DateTime.now().difference(_playingStartTime!).inSeconds;
       _playingStartTime = null;
     }
     _trackingTimer?.cancel();
 
     if (_hasStarted && _videoPlayerController.value.isInitialized) {
-      final currentPosition = _videoPlayerController.value.position.inSeconds.toDouble();
+      final currentPosition =
+          _videoPlayerController.value.position.inSeconds.toDouble();
       final totalDuration = _videoPlayerController.value.duration.inSeconds;
-      _trackVideoProgress(VideoTrackingAction.videoPause, currentPosition, totalDuration);
+      _trackVideoProgress(
+        VideoTrackingAction.videoPause,
+        currentPosition,
+        totalDuration,
+      );
     }
   }
 
@@ -1431,10 +1622,11 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
         ),
       ),
       body: Center(
-        child: _chewieController != null &&
-                _chewieController!.videoPlayerController.value.isInitialized
-            ? Chewie(controller: _chewieController!)
-            : const CircularProgressIndicator(color: AppColors.primary),
+        child:
+            _chewieController != null &&
+                    _chewieController!.videoPlayerController.value.isInitialized
+                ? Chewie(controller: _chewieController!)
+                : const CircularProgressIndicator(color: AppColors.primary),
       ),
     );
   }
@@ -1508,7 +1700,9 @@ class _SectionItemState extends State<_SectionItem> {
                   ),
                   const SizedBox(width: 8),
                   Icon(
-                    _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    _isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
                     color: AppColors.color8F959E,
                   ),
                 ],
@@ -1525,120 +1719,141 @@ class _SectionItemState extends State<_SectionItem> {
                 ),
               ),
               child: Column(
-                children: contents.map((content) {
-                  String? videoUrl;
-                  String? documentUrl;
-                  if (content.files.isNotEmpty) {
-                    for (var file in content.files) {
-                      if (file.fileType == 'video') {
-                        videoUrl = file.url;
-                        break;
-                      } else if (file.fileType == 'document') {
-                        documentUrl = file.url;
-                        break;
-                      }
-                    }
-                  }
-
-                  final hasVideo = videoUrl != null && videoUrl.isNotEmpty;
-                  final hasDocument = documentUrl != null && documentUrl.isNotEmpty;
-                  final hasQuiz = content.quiz != null;
-
-                  return InkWell(
-                    onTap: hasQuiz
-                        ? () {
-                            widget.onContentSelected(content.contentId);
-                            final quiz = content.quiz!;
-                            final quizModel = QuizModel(
-                              id: quiz.questionBankId ?? '',
-                              title: quiz.quizTitle ?? '',
-                              type: 'ASSIGNMENT',
-                              timeLimit: 0,
-                              questionCount: 0,
-                              status: QuizStatus.notTaken,
-                              attempts: 0,
-                              subject: '',
-                            );
-                            Navigator.pushNamed(
-                              context,
-                              QuizTakingScreen.routeName,
-                              arguments: {'quiz': quizModel},
-                            );
+                children:
+                    contents.map((content) {
+                      String? videoUrl;
+                      String? documentUrl;
+                      if (content.files.isNotEmpty) {
+                        for (var file in content.files) {
+                          if (file.fileType == 'video') {
+                            videoUrl = file.url;
+                            break;
+                          } else if (file.fileType == 'document') {
+                            documentUrl = file.url;
+                            break;
                           }
-                        : hasVideo
-                            ? () => widget.onPlayVideo(videoUrl!, content.title ?? '', content.contentId)
-                            : hasDocument
+                        }
+                      }
+
+                      final hasVideo = videoUrl != null && videoUrl.isNotEmpty;
+                      final hasDocument =
+                          documentUrl != null && documentUrl.isNotEmpty;
+                      final hasQuiz = content.quiz != null;
+
+                      return InkWell(
+                        onTap:
+                            hasQuiz
                                 ? () {
-                                    widget.onContentSelected(content.contentId);
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => DocumentViewerScreen(
-                                          documentUrl: documentUrl!,
-                                          title: content.title ?? '',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                : null,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: AppColors.lightGray.withOpacity(0.5)),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          if (hasQuiz)
-                            Icon(
-                              Icons.quiz_outlined,
-                              color: AppColors.success,
-                              size: 24,
-                            )
-                          else if (hasVideo)
-                            Icon(
-                              Icons.play_circle_outline,
-                              color: AppColors.primary,
-                              size: 24,
-                            )
-                          else
-                            Icon(
-                              Icons.description_outlined,
-                              color: AppColors.colorFF6905,
-                              size: 24,
-                            ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
+                                  widget.onContentSelected(content.contentId);
+                                  final quiz = content.quiz!;
+                                  final quizModel = QuizModel(
+                                    id: quiz.questionBankId ?? '',
+                                    title: quiz.quizTitle ?? '',
+                                    type: 'ASSIGNMENT',
+                                    timeLimit: 0,
+                                    questionCount: 0,
+                                    status: QuizStatus.notTaken,
+                                    attempts: 0,
+                                    subject: '',
+                                  );
+                                  Navigator.pushNamed(
+                                    context,
+                                    QuizTakingScreen.routeName,
+                                    arguments: {'quiz': quizModel},
+                                  );
+                                }
+                                : hasVideo
+                                ? () => widget.onPlayVideo(
+                                  videoUrl!,
                                   content.title ?? '',
-                                  style: AppTextStyles.textContent2.copyWith(
-                                    color: AppColors.text,
-                                    fontWeight: hasVideo || hasQuiz || hasDocument ? FontWeight.w500 : FontWeight.normal,
-                                  ),
-                                ),
-                                if (content.description != null && content.description!.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    content.description ?? '',
-                                    style: AppTextStyles.textContent3.copyWith(
-                                      color: AppColors.color8F959E,
+                                  content.contentId,
+                                )
+                                : hasDocument
+                                ? () {
+                                  widget.onContentSelected(content.contentId);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => DocumentViewerScreen(
+                                            documentUrl: documentUrl!,
+                                            title: content.title ?? '',
+                                          ),
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ],
+                                  );
+                                }
+                                : null,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              top: BorderSide(
+                                color: AppColors.lightGray.withOpacity(0.5),
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
+                          child: Row(
+                            children: [
+                              if (hasQuiz)
+                                Icon(
+                                  Icons.quiz_outlined,
+                                  color: AppColors.success,
+                                  size: 24,
+                                )
+                              else if (hasVideo)
+                                Icon(
+                                  Icons.play_circle_outline,
+                                  color: AppColors.primary,
+                                  size: 24,
+                                )
+                              else
+                                Icon(
+                                  Icons.description_outlined,
+                                  color: AppColors.colorFF6905,
+                                  size: 24,
+                                ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      content.title ?? '',
+                                      style: AppTextStyles.textContent2
+                                          .copyWith(
+                                            color: AppColors.text,
+                                            fontWeight:
+                                                hasVideo ||
+                                                        hasQuiz ||
+                                                        hasDocument
+                                                    ? FontWeight.w500
+                                                    : FontWeight.normal,
+                                          ),
+                                    ),
+                                    if (content.description != null &&
+                                        content.description!.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        content.description ?? '',
+                                        style: AppTextStyles.textContent3
+                                            .copyWith(
+                                              color: AppColors.color8F959E,
+                                            ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
               ),
             ),
         ],
@@ -1699,11 +1914,9 @@ class _ChatBubbleOverlayState extends State<_ChatBubbleOverlay> {
     if (message.isEmpty) return;
 
     setState(() {
-      _messages.add(ChatMessage(
-        text: message,
-        isUser: true,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(text: message, isUser: true, timestamp: DateTime.now()),
+      );
       _isLoading = true;
     });
 
@@ -1719,11 +1932,13 @@ class _ChatBubbleOverlayState extends State<_ChatBubbleOverlay> {
 
       if (mounted) {
         setState(() {
-          _messages.add(ChatMessage(
-            text: response.data?.responseRaw ?? 'Không có phản hồi',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
+          _messages.add(
+            ChatMessage(
+              text: response.data?.responseRaw ?? 'Không có phản hồi',
+              isUser: false,
+              timestamp: DateTime.now(),
+            ),
+          );
           _isLoading = false;
         });
       }
@@ -1732,11 +1947,13 @@ class _ChatBubbleOverlayState extends State<_ChatBubbleOverlay> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _messages.add(ChatMessage(
-            text: 'Lỗi: ${e.toString()}',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
+          _messages.add(
+            ChatMessage(
+              text: 'Lỗi: ${e.toString()}',
+              isUser: false,
+              timestamp: DateTime.now(),
+            ),
+          );
           _isLoading = false;
         });
       }
@@ -1783,7 +2000,11 @@ class _ChatBubbleOverlayState extends State<_ChatBubbleOverlay> {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          const Icon(Icons.smart_toy, color: AppColors.white, size: 24),
+                          const Icon(
+                            Icons.smart_toy,
+                            color: AppColors.white,
+                            size: 24,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -1794,7 +2015,10 @@ class _ChatBubbleOverlayState extends State<_ChatBubbleOverlay> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.close, color: AppColors.white),
+                            icon: const Icon(
+                              Icons.close,
+                              color: AppColors.white,
+                            ),
                             onPressed: () => Navigator.pop(context),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -1805,118 +2029,126 @@ class _ChatBubbleOverlayState extends State<_ChatBubbleOverlay> {
                   ],
                 ),
               ),
-            Expanded(
-              child: _messages.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 64,
-                            color: AppColors.lightGray,
+              Expanded(
+                child:
+                    _messages.isEmpty
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.chat_bubble_outline,
+                                size: 64,
+                                color: AppColors.lightGray,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'chat.input_hint'.tr(),
+                                style: AppTextStyles.textContent2.copyWith(
+                                  color: AppColors.coolGray,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'chat.input_hint'.tr(),
-                            style: AppTextStyles.textContent2.copyWith(
-                              color: AppColors.coolGray,
-                            ),
-                          ),
-                        ],
+                        )
+                        : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            final message = _messages[index];
+                            return _buildMessageBubble(message);
+                          },
+                        ),
+              ),
+              if (_isLoading)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final message = _messages[index];
-                        return _buildMessageBubble(message);
-                      },
-                    ),
-            ),
-            if (_isLoading)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'chat.thinking'.tr(),
+                        style: AppTextStyles.textContent3.copyWith(
+                          color: AppColors.coolGray,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  border: Border(
+                    top: BorderSide(color: AppColors.lightGray, width: 1),
+                  ),
+                ),
                 child: Row(
                   children: [
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.primary,
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: 'chat.type_message'.tr(),
+                          hintStyle: AppTextStyles.textContent2.copyWith(
+                            color: AppColors.color8F959E,
+                          ),
+                          filled: true,
+                          fillColor: AppColors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: AppColors.lightGray),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: AppColors.lightGray),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(
+                              color: AppColors.primary,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        style: AppTextStyles.textContent2,
+                        maxLines: null,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      'chat.thinking'.tr(),
-                      style: AppTextStyles.textContent3.copyWith(
-                        color: AppColors.coolGray,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.send,
+                          color: AppColors.white,
+                          size: 20,
+                        ),
+                        onPressed: _isLoading ? null : _sendMessage,
+                        padding: const EdgeInsets.all(12),
                       ),
                     ),
                   ],
                 ),
               ),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                border: Border(
-                  top: BorderSide(color: AppColors.lightGray, width: 1),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'chat.type_message'.tr(),
-                        hintStyle: AppTextStyles.textContent2.copyWith(
-                          color: AppColors.color8F959E,
-                        ),
-                        filled: true,
-                        fillColor: AppColors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: AppColors.lightGray),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: AppColors.lightGray),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: AppColors.primary, width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                      ),
-                      style: AppTextStyles.textContent2,
-                      maxLines: null,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.send, color: AppColors.white, size: 20),
-                      onPressed: _isLoading ? null : _sendMessage,
-                      padding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             ],
           ),
         );
@@ -1938,8 +2170,14 @@ class _ChatBubbleOverlayState extends State<_ChatBubbleOverlay> {
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
-            bottomLeft: message.isUser ? const Radius.circular(16) : const Radius.circular(4),
-            bottomRight: message.isUser ? const Radius.circular(4) : const Radius.circular(16),
+            bottomLeft:
+                message.isUser
+                    ? const Radius.circular(16)
+                    : const Radius.circular(4),
+            bottomRight:
+                message.isUser
+                    ? const Radius.circular(4)
+                    : const Radius.circular(16),
           ),
         ),
         child: Column(

@@ -244,10 +244,7 @@ class CourseListWidget extends StatelessWidget {
     return ValueListenableBuilder<UserData?>(
       valueListenable: UserService.instance.userDataNotifier,
       builder: (context, userData, _) {
-        final isPayment =
-            userData?.isPayment?.trim().toUpperCase() ??
-            UserService.instance.isPayment?.trim().toUpperCase();
-        final showPrice = isPayment == 'Y';
+        const showPrice = false;
 
         return BlocBuilder<CourseCubit, CourseState>(
           builder: (context, state) {
@@ -293,7 +290,11 @@ class CourseListWidget extends StatelessWidget {
               return Padding(
                 padding: AppPad.h24,
                 child: Column(
-                  children: _buildCourseListWithAds(courses, showPrice, context),
+                  children: _buildCourseListWithAds(
+                    courses,
+                    showPrice,
+                    context,
+                  ),
                 ),
               );
             }
@@ -339,10 +340,7 @@ class CourseListWidget extends StatelessWidget {
         CourseListItem(
           title: course.title ?? 'Untitled Course',
           instructor: course.teacher?.toString() ?? 'Unknown',
-          price:
-              course.price != null
-                  ? course.price.formatCurrency()
-                  : 'Free',
+          price: course.price != null ? course.price.formatCurrency() : 'Free',
           duration:
               course.courseDuration != null
                   ? '${course.courseDuration} hours'
@@ -356,7 +354,9 @@ class CourseListWidget extends StatelessWidget {
       );
 
       // Insert native ad after every `interval` items
-      if (adCount < maxAds && (i + 1) % interval == 0 && i < courses.length - 1) {
+      if (adCount < maxAds &&
+          (i + 1) % interval == 0 &&
+          i < courses.length - 1) {
         widgets.add(const SizedBox(height: 8));
         widgets.add(
           Container(
@@ -376,7 +376,10 @@ class CourseListWidget extends StatelessWidget {
             child: Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.colorFF6905.withAlpha(25),
                     borderRadius: BorderRadius.circular(4),

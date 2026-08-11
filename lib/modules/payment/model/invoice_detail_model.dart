@@ -62,6 +62,8 @@ class InvoiceData {
   final BuyerInfo? buyer;
   final CourseInfo? course;
   final List<RefundInfo>? refunds;
+  final String? currency;
+  final bool isIap;
 
   InvoiceData({
     this.paymentId,
@@ -76,6 +78,8 @@ class InvoiceData {
     this.buyer,
     this.course,
     this.refunds,
+    this.currency,
+    this.isIap = false,
   });
 
   factory InvoiceData.fromJson(Map<String, dynamic> json) {
@@ -103,6 +107,8 @@ class InvoiceData {
                   .map((x) => RefundInfo.fromJson(x as Map<String, dynamic>))
                   .toList()
               : null,
+      currency: json['currency'] as String?,
+      isIap: json['is_iap'] == true,
     );
   }
 }

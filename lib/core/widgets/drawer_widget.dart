@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ed_tech/core/widgets/switch_botton_widget.dart';
-import 'package:ed_tech/core/widgets/template/button_widget.dart';
 import 'package:ed_tech/core/widgets/toast.dart';
 import 'package:ed_tech/core/theme/locale_cubit.dart';
 import 'package:ed_tech/init.dart';
@@ -258,16 +257,6 @@ class DrawerWidget extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (userData?.isPayment?.trim().toUpperCase() == 'Y')
-                    ButtonWidget(
-                      title: "common.orders".tr(),
-                      boderRadius: AppBorderRadius.a8,
-                      padding: AppPad.h10v8,
-                      backgroundColor: AppColors.offWhite,
-                      titleStyle: AppTextStyles.textContent3.copyWith(
-                        color: AppColors.coolGray,
-                      ),
-                    ),
                 ],
               ),
             ],
@@ -278,24 +267,13 @@ class DrawerWidget extends StatelessWidget {
   }
 
   Widget _buildPaymentDrawerItem(BuildContext context) {
-    return ValueListenableBuilder<UserData?>(
-      valueListenable: UserService.instance.userDataNotifier,
-      builder: (context, userData, _) {
-        final isPayment =
-            userData?.isPayment?.trim().toUpperCase() ??
-            UserService.instance.isPayment?.trim().toUpperCase();
-
-        if (isPayment != 'Y') return const SizedBox.shrink();
-
-        return _buildDrawerItem(
-          icon: IconPath.iconCredit,
-          title: 'common.payments'.tr(),
-          iconSize: 25,
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.pushNamed(context, '/myPaymentsScreen');
-          },
-        );
+    return _buildDrawerItem(
+      icon: IconPath.iconCredit,
+      title: 'common.payments'.tr(),
+      iconSize: 25,
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.pushNamed(context, '/myPaymentsScreen');
       },
     );
   }

@@ -1,7 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:ed_tech/common/app_event_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:ed_tech/core/constants/api_path.dart';
 import 'package:ed_tech/core/constants/app_constants.dart';
 import 'package:ed_tech/data/api_client.dart';
@@ -10,6 +8,9 @@ import 'package:ed_tech/data/services/auth_service.dart';
 import 'package:ed_tech/data/services/user_service.dart';
 import 'package:ed_tech/modules/auth/login/model/login_social_response.dart';
 import 'package:ed_tech/modules/auth/sign_in/model/login_response.dart';
+import 'package:ed_tech/modules/iap/service/revenuecat_service.dart';
+import 'package:ed_tech/modules/iap/service/iap_platform.dart';
+import 'package:ed_tech/modules/iap/repository/iap_repository.dart';
 
 class SignInRepo {
   final ApiClient apiClient;
@@ -76,17 +77,18 @@ class SignInRepo {
         ),
       );
     }
+    await _initializeIap();
   }
 
   Future<bool> loginSocial({required String token}) async {
     final res = await apiClient.fetch(
       ApiPath.loginSocial,
       RequestMethod.post,
-      rawData: {"token": token},
+      rawData: {"idToken": token},
     );
 
     LoginSocialResponse loginSocialResponse = LoginSocialResponse.fromJson(
-      res.json,
+      res.data,
     );
 
     if (res.code != 200) {
@@ -104,7 +106,33 @@ class SignInRepo {
       tokenExpiresTime: expiresTime,
     );
 
+    await UserService.instance.saveUserData(
+      UserData(
+        id: loginSocialResponse.id ?? '',
+        username: loginSocialResponse.email ?? loginSocialResponse.name ?? '',
+        email: loginSocialResponse.email ?? '',
+        role: loginSocialResponse.role ?? 'student',
+        fullName: loginSocialResponse.name,
+        avatarUrl: loginSocialResponse.image,
+        phone: loginSocialResponse.phone,
+      ),
+    );
+    await _initializeIap();
+
     return res.code == 200;
+  }
+
+  Future<void> _initializeIap() async {
+    final platform = IapPlatform.apiValue;
+    if (platform == null) return;
+    try {
+      final config = await IapRepository(
+        apiClient: apiClient,
+      ).getConfig(platform);
+      await RevenueCatService.instance.configure(config);
+    } catch (_) {
+      // Checkout retries initialization and surfaces a user-facing error.
+    }
   }
 
   Future<void> logout() async {
@@ -112,6 +140,7 @@ class SignInRepo {
       authService.logoutOnServer();
       authService.invalid();
       await UserService.instance.clearUserData();
+      await RevenueCatService.instance.clearLocalIdentity();
       AppEventService.didUserCompleteFirstExperience;
     } catch (e) {
       throw Exception('${'login.logout_error'.tr()}: $e');
@@ -133,6 +162,7 @@ class SignInRepo {
 
     await authService.invalid();
     await UserService.instance.clearUserData();
+    await RevenueCatService.instance.clearLocalIdentity();
     await AppEventService.notifyUserSignOut();
 
     return message;

@@ -9,7 +9,6 @@ import 'package:ed_tech/modules/course/model/autocomplete_suggestion.dart';
 import 'package:ed_tech/modules/course/screen/course_detail_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ed_tech/utils/helpers/currency_extension.dart';
-import 'package:ed_tech/data/services/user_service.dart';
 
 class SearchCourseScreen extends StatefulWidget {
   const SearchCourseScreen({super.key});
@@ -36,7 +35,8 @@ class _SearchCourseScreenState extends State<SearchCourseScreen> {
     super.didChangeDependencies();
     if (!_hasInitialized) {
       _hasInitialized = true;
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final initialQuery = args?['initialQuery'] as String?;
 
       if (initialQuery != null && initialQuery.isNotEmpty) {
@@ -170,16 +170,24 @@ class _SearchCourseScreenState extends State<SearchCourseScreen> {
                   }
 
                   return ListView.separated(
-                    padding: const EdgeInsets.only(left: 24, right: 24, top: 12, bottom: 16),
+                    padding: const EdgeInsets.only(
+                      left: 24,
+                      right: 24,
+                      top: 12,
+                      bottom: 16,
+                    ),
                     itemCount: suggestions.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
-                      final suggestion = suggestions[index] as AutocompleteSuggestion;
+                      final suggestion =
+                          suggestions[index] as AutocompleteSuggestion;
                       return _SuggestionItem(
                         keyword: suggestion.keyword ?? '',
                         onTap: () {
                           _textController.text = suggestion.keyword ?? '';
-                          context.read<SearchCourseCubit>().searchCourses(suggestion.keyword ?? '');
+                          context.read<SearchCourseCubit>().searchCourses(
+                            suggestion.keyword ?? '',
+                          );
                         },
                       );
                     },
@@ -223,19 +231,28 @@ class _SearchCourseScreenState extends State<SearchCourseScreen> {
                       ),
                       Expanded(
                         child: ListView.separated(
-                          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 16),
+                          padding: const EdgeInsets.only(
+                            left: 24,
+                            right: 24,
+                            bottom: 16,
+                          ),
                           itemCount: history.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final item = history[index] as SearchHistory;
                             return _HistoryItem(
                               keyword: item.keyword ?? '',
                               onTap: () {
                                 _textController.text = item.keyword ?? '';
-                                context.read<SearchCourseCubit>().searchCourses(item.keyword ?? '');
+                                context.read<SearchCourseCubit>().searchCourses(
+                                  item.keyword ?? '',
+                                );
                               },
                               onDelete: () {
-                                context.read<SearchCourseCubit>().deleteHistory(item.searchId ?? '');
+                                context.read<SearchCourseCubit>().deleteHistory(
+                                  item.searchId ?? '',
+                                );
                               },
                             );
                           },
@@ -278,7 +295,11 @@ class _SearchCourseScreenState extends State<SearchCourseScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.only(left: 24, right: 24, bottom: 12),
+                        padding: const EdgeInsets.only(
+                          left: 24,
+                          right: 24,
+                          bottom: 12,
+                        ),
                         child: Text(
                           '${results.length} ${'search.results_count'.tr()}',
                           style: AppTextStyles.textMedium.copyWith(
@@ -288,14 +309,21 @@ class _SearchCourseScreenState extends State<SearchCourseScreen> {
                       ),
                       Expanded(
                         child: ListView.separated(
-                          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 16),
+                          padding: const EdgeInsets.only(
+                            left: 24,
+                            right: 24,
+                            bottom: 16,
+                          ),
                           itemCount: results.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 16),
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 16),
                           itemBuilder: (context, index) {
                             final result = results[index] as SearchCourseResult;
                             return _SearchResultCard(
                               result: result,
-                              onTap: () => _navigateToCourseDetail(context, result),
+                              onTap:
+                                  () =>
+                                      _navigateToCourseDetail(context, result),
                             );
                           },
                         ),
@@ -336,7 +364,10 @@ class _SearchCourseScreenState extends State<SearchCourseScreen> {
     );
   }
 
-  void _navigateToCourseDetail(BuildContext context, SearchCourseResult result) {
+  void _navigateToCourseDetail(
+    BuildContext context,
+    SearchCourseResult result,
+  ) {
     Navigator.pushNamed(
       context,
       CourseDetailScreen.routeName,
@@ -357,15 +388,11 @@ class _SearchResultCard extends StatelessWidget {
   final SearchCourseResult result;
   final VoidCallback onTap;
 
-  const _SearchResultCard({
-    required this.result,
-    required this.onTap,
-  });
+  const _SearchResultCard({required this.result, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final showPrice =
-        UserService.instance.isPayment?.trim().toUpperCase() == 'Y';
+    const showPrice = false;
 
     return GestureDetector(
       onTap: onTap,
@@ -403,23 +430,24 @@ class _SearchResultCard extends StatelessWidget {
                   topLeft: Radius.circular(16),
                   bottomLeft: Radius.circular(16),
                 ),
-                child: result.thumbnailUrl != null
-                    ? Image.network(
-                        result.thumbnailUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.image_not_supported,
-                            color: AppColors.colorB8B8D2,
-                            size: 40,
-                          );
-                        },
-                      )
-                    : const Icon(
-                        Icons.image_not_supported,
-                        color: AppColors.colorB8B8D2,
-                        size: 40,
-                      ),
+                child:
+                    result.thumbnailUrl != null
+                        ? Image.network(
+                          result.thumbnailUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              Icons.image_not_supported,
+                              color: AppColors.colorB8B8D2,
+                              size: 40,
+                            );
+                          },
+                        )
+                        : const Icon(
+                          Icons.image_not_supported,
+                          color: AppColors.colorB8B8D2,
+                          size: 40,
+                        ),
               ),
             ),
             Expanded(
@@ -475,10 +503,7 @@ class _SuggestionItem extends StatelessWidget {
   final String keyword;
   final VoidCallback onTap;
 
-  const _SuggestionItem({
-    required this.keyword,
-    required this.onTap,
-  });
+  const _SuggestionItem({required this.keyword, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -489,18 +514,11 @@ class _SuggestionItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.colorF4F3FD,
-            width: 1,
-          ),
+          border: Border.all(color: AppColors.colorF4F3FD, width: 1),
         ),
         child: Row(
           children: [
-            const Icon(
-              Icons.search,
-              color: AppColors.colorB8B8D2,
-              size: 20,
-            ),
+            const Icon(Icons.search, color: AppColors.colorB8B8D2, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -537,18 +555,11 @@ class _HistoryItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.colorF4F3FD,
-            width: 1,
-          ),
+          border: Border.all(color: AppColors.colorF4F3FD, width: 1),
         ),
         child: Row(
           children: [
-            const Icon(
-              Icons.history,
-              color: AppColors.colorB8B8D2,
-              size: 20,
-            ),
+            const Icon(Icons.history, color: AppColors.colorB8B8D2, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(

@@ -5,6 +5,9 @@ import 'package:ed_tech/data/services/user_service.dart';
 import 'package:ed_tech/init.dart';
 import 'package:ed_tech/modules/profile/bloc/profile_controller.dart';
 import 'package:ed_tech/modules/profile/screen/edit_profile_screen.dart';
+import 'package:ed_tech/modules/iap/bloc/iap_cubit.dart';
+import 'package:ed_tech/modules/iap/service/iap_platform.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -12,7 +15,8 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ProfileController controller = DisposableProvider.of<ProfileController>(context);
+    final ProfileController controller =
+        DisposableProvider.of<ProfileController>(context);
     return _ProfileContent(controller: controller);
   }
 }
@@ -32,9 +36,7 @@ class _ProfileContent extends StatelessWidget {
             isShowAppBar: true,
             title: 'profile.title'.tr(),
             isShowBottomButton: false,
-            screen: Center(
-              child: Text('profile.no_data'.tr()),
-            ),
+            screen: Center(child: Text('profile.no_data'.tr())),
           );
         }
 
@@ -61,8 +63,13 @@ class _ProfileContent extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildPersonalInfo(userData),
+                      if (IapPlatform.isSupported) ...[
+                        AppGap.h20,
+                        _buildRestorePurchases(context),
+                      ],
                       AppGap.h30,
-                      if (userData.certificates != null && userData.certificates!.isNotEmpty)
+                      if (userData.certificates != null &&
+                          userData.certificates!.isNotEmpty)
                         _buildCertificates(userData.certificates!),
                     ],
                   ),
@@ -84,10 +91,7 @@ class _ProfileContent extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary,
-            AppColors.electricBlue,
-          ],
+          colors: [AppColors.primary, AppColors.electricBlue],
         ),
       ),
       child: Column(
@@ -100,15 +104,23 @@ class _ProfileContent extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 50,
                   backgroundColor: AppColors.offWhite,
-                  backgroundImage: userData.avatarUrl != null && userData.avatarUrl!.isNotEmpty
-                      ? NetworkImage(userData.avatarUrl!) as ImageProvider
-                      : null,
-                  onBackgroundImageError: userData.avatarUrl != null
-                      ? (exception, stackTrace) {}
-                      : null,
-                  child: userData.avatarUrl == null || userData.avatarUrl!.isEmpty
-                      ? Icon(Icons.person, size: 50, color: AppColors.coolGray)
-                      : null,
+                  backgroundImage:
+                      userData.avatarUrl != null &&
+                              userData.avatarUrl!.isNotEmpty
+                          ? NetworkImage(userData.avatarUrl!) as ImageProvider
+                          : null,
+                  onBackgroundImageError:
+                      userData.avatarUrl != null
+                          ? (exception, stackTrace) {}
+                          : null,
+                  child:
+                      userData.avatarUrl == null || userData.avatarUrl!.isEmpty
+                          ? Icon(
+                            Icons.person,
+                            size: 50,
+                            color: AppColors.coolGray,
+                          )
+                          : null,
                 ),
               ),
               Positioned(
@@ -127,7 +139,11 @@ class _ProfileContent extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Icon(Icons.verified, color: AppColors.electricBlue, size: 20),
+                  child: Icon(
+                    Icons.verified,
+                    color: AppColors.electricBlue,
+                    size: 20,
+                  ),
                 ),
               ),
             ],
@@ -154,32 +170,6 @@ class _ProfileContent extends StatelessWidget {
             ),
           ),
           AppGap.h8,
-          if (userData.isPayment == 'Y')
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.limeGreen.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.check_circle,
-                    color: Colors.white,
-                    size: 14,
-                  ),
-                  AppGap.w4,
-                  Text(
-                    'Premium',
-                    style: AppTextStyles.textContent3.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
@@ -195,13 +185,58 @@ class _ProfileContent extends StatelessWidget {
             AppGap.w8,
             Text(
               'profile.personal_info'.tr(),
-              style: AppTextStyles.textHeader3.copyWith(color: AppColors.primary),
+              style: AppTextStyles.textHeader3.copyWith(
+                color: AppColors.primary,
+              ),
             ),
           ],
         ),
         AppGap.h20,
         _buildInfoGrid(userData),
       ],
+    );
+  }
+
+  Widget _buildRestorePurchases(BuildContext context) {
+    return BlocConsumer<IapCubit, IapState>(
+      listener: (context, state) {
+        if (state is IapRestoreSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                state.activatedCourseIds.isEmpty
+                    ? 'profile.restore_empty'.tr()
+                    : 'profile.restore_success'.tr(),
+              ),
+            ),
+          );
+        } else if (state is IapFailure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        final restoring = state is IapRestoring;
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.restore, color: AppColors.primary),
+          title: Text('profile.restore_purchases'.tr()),
+          subtitle: Text('profile.restore_purchases_hint'.tr()),
+          trailing:
+              restoring
+                  ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                  : const Icon(Icons.chevron_right),
+          onTap: restoring ? null : () => context.read<IapCubit>().restore(),
+        );
+      },
     );
   }
 
@@ -212,11 +247,7 @@ class _ProfileContent extends StatelessWidget {
         'label': 'Username',
         'value': userData.username,
       },
-      {
-        'icon': Icons.badge_outlined,
-        'label': 'ID',
-        'value': userData.id,
-      },
+      {'icon': Icons.badge_outlined, 'label': 'ID', 'value': userData.id},
       {
         'icon': Icons.email_outlined,
         'label': 'profile.email'.tr(),
@@ -234,7 +265,8 @@ class _ProfileContent extends StatelessWidget {
           'label': 'profile.grade'.tr(),
           'value': userData.grade!,
         },
-      if (userData.subjectSpecialty != null && userData.subjectSpecialty!.isNotEmpty)
+      if (userData.subjectSpecialty != null &&
+          userData.subjectSpecialty!.isNotEmpty)
         {
           'icon': Icons.book_outlined,
           'label': 'profile.subject'.tr(),
@@ -323,17 +355,25 @@ class _ProfileContent extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.workspace_premium, color: Colors.white, size: 20),
+              child: Icon(
+                Icons.workspace_premium,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
             AppGap.w8,
             Text(
               'profile.certificates'.tr(),
-              style: AppTextStyles.textHeader3.copyWith(color: AppColors.primary),
+              style: AppTextStyles.textHeader3.copyWith(
+                color: AppColors.primary,
+              ),
             ),
             Spacer(),
             Text(
               '${certificates.length}',
-              style: AppTextStyles.textHeader3.copyWith(color: AppColors.coolGray),
+              style: AppTextStyles.textHeader3.copyWith(
+                color: AppColors.coolGray,
+              ),
             ),
           ],
         ),
@@ -387,11 +427,17 @@ class _ProfileContent extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.image_not_supported, size: 48, color: AppColors.coolGray),
+                          Icon(
+                            Icons.image_not_supported,
+                            size: 48,
+                            color: AppColors.coolGray,
+                          ),
                           AppGap.h8,
                           Text(
                             'Image not available',
-                            style: AppTextStyles.textContent3.copyWith(color: AppColors.coolGray),
+                            style: AppTextStyles.textContent3.copyWith(
+                              color: AppColors.coolGray,
+                            ),
                           ),
                         ],
                       ),
@@ -411,7 +457,8 @@ class _ProfileContent extends StatelessWidget {
                     color: AppColors.primary,
                   ),
                 ),
-                if (certificate.description != null && certificate.description!.isNotEmpty) ...[
+                if (certificate.description != null &&
+                    certificate.description!.isNotEmpty) ...[
                   AppGap.h8,
                   Text(
                     certificate.description!,
@@ -427,7 +474,8 @@ class _ProfileContent extends StatelessWidget {
                   spacing: 12,
                   runSpacing: 8,
                   children: [
-                    if (certificate.issuedBy != null && certificate.issuedBy!.isNotEmpty)
+                    if (certificate.issuedBy != null &&
+                        certificate.issuedBy!.isNotEmpty)
                       _buildChip(
                         icon: Icons.business,
                         label: certificate.issuedBy!,

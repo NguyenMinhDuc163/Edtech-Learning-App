@@ -1,615 +1,319 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:ed_tech/data/services/user_service.dart';
+import 'package:ed_tech/init.dart';
+import 'package:ed_tech/modules/iap/bloc/iap_cubit.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:ed_tech/modules/payment/bloc/payment_cubit.dart';
 import 'package:ed_tech/modules/payment/bloc/payment_state.dart';
 import 'package:ed_tech/modules/payment/screen/payment_webview_screen.dart';
-import 'package:ed_tech/modules/payment/screen/confirm_screen.dart';
-import 'package:ed_tech/init.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ed_tech/utils/helpers/currency_extension.dart';
 
-class OrderConfirmationScreen extends StatelessWidget {
-  static const String routeName = '/orderConfirmationScreen';
-
+class OrderConfirmationScreen extends StatefulWidget {
   const OrderConfirmationScreen({super.key});
 
-  Future<void> _openPaymentWebView(BuildContext context, String paymentUrl) async {
-    final result = await Navigator.of(
-      context,
-    ).pushNamed(PaymentWebViewScreen.routeName, arguments: paymentUrl);
-
-    if (result != null && result is Map<String, dynamic>) {
-      if (!context.mounted) return;
-
-      final bool success = result['success'] ?? false;
-      final bool cancelled = result['cancelled'] ?? false;
-
-      if (cancelled) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('payment.payment_cancelled'.tr()),
-            backgroundColor: AppColors.color8F959E,
-          ),
-        );
-
-        context.read<PaymentCubit>().reset();
-      } else if (success) {
-        // Hiển thị dialog thành công với loading
-        _showPaymentSuccessDialog(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('payment.payment_failed'.tr()), backgroundColor: AppColors.error),
-        );
-
-        context.read<PaymentCubit>().reset();
-      }
-    }
-  }
-
-  Future<void> _showPaymentSuccessDialog(BuildContext context) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => PopScope(
-        canPop: false,
-        child: Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.green.withAlpha(26),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
-                    size: 60,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                Text(
-                  'payment.payment_success'.tr(),
-                  style: AppTextStyles.textHeader3.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-
-                Text(
-                  'payment.redirecting'.tr(),
-                  style: AppTextStyles.textContent2.copyWith(
-                    color: AppColors.color8F959E,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!context.mounted) return;
-
-    Navigator.of(context).pop();
-
-    Navigator.of(context).pop();
-
-    if (!context.mounted) return;
-
-    Navigator.of(context).pushReplacementNamed(ConfirmScreen.routeName);
-  }
+  static const String routeName = '/orderConfirmationScreen';
 
   @override
-  Widget build(BuildContext context) {
-    final Map<String, dynamic>? args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-
-    if (args == null) {
-      return Scaffold(body: Center(child: Text('No order data available')));
-    }
-
-    final String courseId = args['courseId'] ?? '';
-    final String courseTitle = args['title'] ?? 'Untitled Course';
-    final String instructor = args['instructor'] ?? 'Unknown';
-    final String price = args['price'] ?? '0';
-    final String duration = args['duration'] ?? '0h 0m';
-    final String? thumbnailUrl = args['thumbnailUrl'];
-
-    final userData = UserService.instance.userData;
-
-    return BlocListener<PaymentCubit, PaymentState>(
-      listener: (context, state) {
-        if (state is PaymentSuccess) {
-          _openPaymentWebView(context, state.paymentUrl);
-        } else if (state is PaymentError) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: AppColors.error));
-        }
-      },
-      child: FunctionScreenTemplate(
-        title: 'payment.order_confirmation'.tr(),
-        isShowBottomButton: false,
-        backgroundColor: AppColors.background,
-        screen: BlocBuilder<PaymentCubit, PaymentState>(
-          builder: (context, paymentState) {
-            final isLoading = paymentState is PaymentProgress;
-
-            return Stack(
-              children: [
-                SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: AppPad.h24v12,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [AppColors.primary.withAlpha(26), AppColors.colorFFEBF0],
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppColors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primary.withAlpha(51),
-                                    blurRadius: 20,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                Icons.shopping_cart_checkout_rounded,
-                                size: 48,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'payment.order_confirmation'.tr(),
-                              style: AppTextStyles.textHeader3.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Review your order details before proceeding',
-                              style: AppTextStyles.textContent3.copyWith(
-                                color: AppColors.color8F959E,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      Padding(
-                        padding: AppPad.h24,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 24),
-
-                            Row(
-                              children: [
-                                Container(
-                                  width: 4,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'payment.course_details'.tr(),
-                                  style: AppTextStyles.textHeader3.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.text,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-
-                            _CourseInfoCard(
-                              thumbnailUrl: thumbnailUrl,
-                              courseTitle: courseTitle,
-                              instructor: instructor,
-                              duration: duration,
-                              price: price,
-                            ),
-
-                            const SizedBox(height: 32),
-
-                            Row(
-                              children: [
-                                Container(
-                                  width: 4,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'payment.buyer_information'.tr(),
-                                  style: AppTextStyles.textHeader3.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.text,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-
-                            _BuyerInfoCard(userData: userData),
-
-                            const SizedBox(height: 32),
-
-                            _PriceSummary(price: price),
-
-                            const SizedBox(height: 24),
-
-                            Container(
-                              width: double.infinity,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [AppColors.primary, AppColors.color0961F5],
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primary.withAlpha(102),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: ElevatedButton(
-                                onPressed:
-                                    isLoading
-                                        ? null
-                                        : () {
-                                          final numPrice = double.tryParse(price) ?? 0;
-                                          final amountInVND = (numPrice * 1).toInt();
-
-                                          context.read<PaymentCubit>().createPayment(
-                                            courseId: courseId,
-                                            amount: amountInVND,
-                                          );
-                                        },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  disabledBackgroundColor: Colors.transparent,
-                                ),
-                                child:
-                                    isLoading
-                                        ? const SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: CircularProgressIndicator(
-                                            color: AppColors.white,
-                                            strokeWidth: 2.5,
-                                          ),
-                                        )
-                                        : Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'payment.proceed_to_payment'.tr(),
-                                              style: AppTextStyles.button.copyWith(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            const Icon(
-                                              Icons.arrow_forward_rounded,
-                                              color: AppColors.white,
-                                              size: 20,
-                                            ),
-                                          ],
-                                        ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 32),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
+  State<OrderConfirmationScreen> createState() =>
+      _OrderConfirmationScreenState();
 }
 
-class _CourseInfoCard extends StatelessWidget {
-  final String? thumbnailUrl;
-  final String courseTitle;
-  final String instructor;
-  final String duration;
-  final String price;
+class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
+  bool _requestedProduct = false;
 
-  const _CourseInfoCard({
-    required this.thumbnailUrl,
-    required this.courseTitle,
-    required this.instructor,
-    required this.duration,
-    required this.price,
-  });
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_requestedProduct) return;
+    _requestedProduct = true;
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final productId = args?['productId'] as String?;
+    if (productId != null && productId.isNotEmpty) {
+      context.read<IapCubit>().loadProduct(productId);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withAlpha(13),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
-            child:
-                thumbnailUrl != null && thumbnailUrl!.isNotEmpty
-                    ? Image.network(
-                      thumbnailUrl!,
-                      width: double.infinity,
-                      height: 180,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: double.infinity,
-                          height: 180,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [AppColors.colorFFEBF0, AppColors.primary.withAlpha(77)],
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.school_rounded,
-                            color: AppColors.primary,
-                            size: 64,
-                          ),
-                        );
-                      },
-                    )
-                    : Container(
-                      width: double.infinity,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [AppColors.colorFFEBF0, AppColors.primary.withAlpha(77)],
-                        ),
-                      ),
-                      child: const Icon(Icons.school_rounded, color: AppColors.primary, size: 64),
-                    ),
-          ),
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args == null) {
+      return Scaffold(body: Center(child: Text('payment.invalid_order'.tr())));
+    }
 
-          Padding(
-            padding: const EdgeInsets.all(20),
+    if (kIsWeb) return _WebCheckout(args: args);
+
+    final courseId = args['courseId'] as String? ?? '';
+    final productId = args['productId'] as String? ?? '';
+    final courseTitle = args['title'] as String? ?? 'course.untitled'.tr();
+    final instructor =
+        args['instructor'] as String? ?? 'course.unknown_teacher'.tr();
+    final duration = args['duration'] as String? ?? '';
+    final thumbnailUrl = args['thumbnailUrl'] as String?;
+    final user = UserService.instance.userData;
+
+    return BlocConsumer<IapCubit, IapState>(
+      listener: (context, state) {
+        if (state is IapSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('payment.payment_success'.tr()),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          Navigator.of(context).pop(true);
+        } else if (state is IapPending) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('payment.iap_pending'.tr())));
+        } else if (state is IapFailure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        final product = _productFromState(state);
+        final isBusy = state is IapLoading || state is IapPurchasing;
+        return FunctionScreenTemplate(
+          title: 'payment.order_confirmation'.tr(),
+          isShowBottomButton: false,
+          backgroundColor: AppColors.background,
+          screen: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _CourseSummary(
+                  title: courseTitle,
+                  instructor: instructor,
+                  duration: duration,
+                  thumbnailUrl: thumbnailUrl,
+                ),
+                const SizedBox(height: 28),
                 Text(
-                  courseTitle,
-                  style: AppTextStyles.textContent1.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: AppColors.text,
-                    height: 1.3,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  'payment.buyer_information'.tr(),
+                  style: AppTextStyles.textHeader3,
                 ),
-
-                const SizedBox(height: 16),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.colorF4F3FD,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(26),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(Icons.person_rounded, size: 16, color: AppColors.primary),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          instructor,
-                          style: AppTextStyles.textContent3.copyWith(
-                            color: AppColors.text,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 10),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.account_circle_outlined),
+                  title: Text(user?.fullName ?? user?.username ?? ''),
+                  subtitle: Text(user?.email ?? ''),
                 ),
-
-                const SizedBox(height: 12),
-
+                const Divider(height: 32),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.colorFFEBF0,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: AppColors.colorFF6905.withAlpha(26),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Icon(
-                                Icons.access_time_rounded,
-                                size: 16,
-                                color: AppColors.colorFF6905,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                duration,
-                                style: AppTextStyles.textContent3.copyWith(
-                                  color: AppColors.text,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                    Text(
+                      'payment.total_amount'.tr(),
+                      style: AppTextStyles.textContent1,
+                    ),
+                    if (state is IapLoading)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Text(
+                        product?.priceString ??
+                            args['storePrice'] as String? ??
+                            'payment.store_price'.tr(),
+                        style: AppTextStyles.textHeader2.copyWith(
+                          color: AppColors.primary,
                         ),
                       ),
-                    ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  'payment.store_managed_notice'.tr(),
+                  style: AppTextStyles.textContent3.copyWith(
+                    color: AppColors.color8F959E,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed:
+                        isBusy || product == null
+                            ? null
+                            : () => context.read<IapCubit>().purchase(
+                              courseId: courseId,
+                              productId: productId,
+                              product: product,
+                            ),
+                    icon:
+                        isBusy
+                            ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                            : const Icon(Icons.lock_outline),
+                    label: Text(
+                      state is IapPurchasing
+                          ? 'payment.processing_order'.tr()
+                          : 'payment.pay_with_store'.tr(),
+                    ),
+                  ),
+                ),
+                if (state is IapFailure) ...[
+                  const SizedBox(height: 12),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed:
+                          () => context.read<IapCubit>().loadProduct(productId),
+                      icon: const Icon(Icons.refresh),
+                      label: Text('payment.retry'.tr()),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  StoreProduct? _productFromState(IapState state) {
+    if (state is IapReady) return state.product;
+    if (state is IapPurchasing) return state.product;
+    if (state is IapFailure) return state.product;
+    return null;
   }
 }
 
-class _BuyerInfoCard extends StatelessWidget {
-  final UserData? userData;
+class _WebCheckout extends StatelessWidget {
+  const _WebCheckout({required this.args});
 
-  const _BuyerInfoCard({required this.userData});
+  final Map<String, dynamic> args;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withAlpha(13),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-            spreadRadius: 0,
+    final courseId = args['courseId'] as String? ?? '';
+    final title = args['title'] as String? ?? 'course.untitled'.tr();
+    final price = args['price'] as String? ?? '0';
+    final amount = double.tryParse(price)?.round() ?? 0;
+
+    return BlocConsumer<PaymentCubit, PaymentState>(
+      listener: (context, state) async {
+        if (state is PaymentSuccess) {
+          final result = await Navigator.of(context).pushNamed(
+            PaymentWebViewScreen.routeName,
+            arguments: state.paymentUrl,
+          );
+          if (!context.mounted) return;
+          if (result is Map<String, dynamic> && result['success'] == true) {
+            Navigator.of(context).pop(true);
+          } else {
+            context.read<PaymentCubit>().reset();
+          }
+        } else if (state is PaymentError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      },
+      builder:
+          (context, state) => FunctionScreenTemplate(
+            title: 'payment.order_confirmation'.tr(),
+            isShowBottomButton: false,
+            screen: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppTextStyles.textHeader2),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('payment.total_amount'.tr()),
+                      Text(
+                        price.formatCurrency(),
+                        style: AppTextStyles.textHeader3,
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          state is PaymentProgress || amount <= 0
+                              ? null
+                              : () =>
+                                  context.read<PaymentCubit>().createPayment(
+                                    courseId: courseId,
+                                    amount: amount,
+                                  ),
+                      icon:
+                          state is PaymentProgress
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Icon(Icons.open_in_new),
+                      label: Text('payment.proceed_to_payment'.tr()),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _InfoRow(
-            label: 'payment.username'.tr(),
-            value: userData?.username ?? 'Guest User',
-            icon: Icons.account_circle_rounded,
-            iconColor: AppColors.primary,
-            iconBgColor: AppColors.primary.withAlpha(26),
-          ),
-          const SizedBox(height: 16),
-          Container(height: 1, color: AppColors.lightGray),
-          const SizedBox(height: 16),
-          _InfoRow(
-            label: 'sign_up.email'.tr(),
-            value: userData?.email ?? 'No email',
-            icon: Icons.email_rounded,
-            iconColor: AppColors.colorFF6905,
-            iconBgColor: AppColors.colorFF6905.withAlpha(26),
-          ),
-        ],
-      ),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBgColor;
-
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBgColor,
+class _CourseSummary extends StatelessWidget {
+  const _CourseSummary({
+    required this.title,
+    required this.instructor,
+    required this.duration,
+    required this.thumbnailUrl,
   });
+
+  final String title;
+  final String instructor;
+  final String duration;
+  final String? thumbnailUrl;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: iconBgColor, borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, size: 24, color: iconColor),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child:
+              thumbnailUrl != null && thumbnailUrl!.isNotEmpty
+                  ? Image.network(
+                    thumbnailUrl!,
+                    width: 104,
+                    height: 104,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _placeholder(),
+                  )
+                  : _placeholder(),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -617,110 +321,28 @@ class _InfoRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                label,
-                style: AppTextStyles.textContent3.copyWith(
-                  color: AppColors.color8F959E,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: AppTextStyles.textContent2.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                  fontSize: 15,
-                ),
-                maxLines: 1,
+                title,
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.textHeader3,
               ),
+              const SizedBox(height: 8),
+              Text(instructor, style: AppTextStyles.textContent3),
+              if (duration.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(duration, style: AppTextStyles.textContent3),
+              ],
             ],
           ),
         ),
       ],
     );
   }
-}
 
-class _PriceSummary extends StatelessWidget {
-  final String price;
-
-  const _PriceSummary({required this.price});
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.colorFF6905, AppColors.colorFF6905.withAlpha(204)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.colorFF6905.withAlpha(102),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.white.withAlpha(51),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.receipt_long_rounded,
-                        color: AppColors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'payment.total_amount'.tr(),
-                      style: AppTextStyles.textContent2.copyWith(
-                        color: AppColors.white.withAlpha(230),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  price.formatCurrency(),
-                  style: AppTextStyles.textHeader1.copyWith(
-                    color: AppColors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 32,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.white.withAlpha(38),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.white.withAlpha(77), width: 2),
-            ),
-            child: const Icon(Icons.payments_rounded, color: AppColors.white, size: 40),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _placeholder() => Container(
+    width: 104,
+    height: 104,
+    color: AppColors.colorF4F3FD,
+    child: const Icon(Icons.school_outlined, color: AppColors.primary),
+  );
 }

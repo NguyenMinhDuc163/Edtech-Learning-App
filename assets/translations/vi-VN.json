@@ -235,7 +235,13 @@
     "invoice_not_found": "Không tìm thấy hóa đơn",
     "hint_city": "Hà Nội",
     "hint_phone": "+84 912 345 678",
-    "hint_address": "43, Khu phố, Quận/Huyện"
+    "hint_address": "43, Khu phố, Quận/Huyện",
+    "iap_unavailable": "Khóa học này hiện chưa thể mua trên ứng dụng",
+    "iap_pending": "Giao dịch đang được cửa hàng xử lý. Quyền truy cập sẽ tự động cập nhật sau khi hoàn tất.",
+    "store_price": "Giá trên cửa hàng",
+    "store_managed_notice": "Thanh toán được xử lý an toàn bởi App Store hoặc Google Play.",
+    "pay_with_store": "Thanh toán qua cửa hàng",
+    "invalid_order": "Thông tin đơn hàng không hợp lệ"
   },
   "review": {
     "title": "Đánh giá",
@@ -511,7 +517,11 @@
     "grade": "Lớp",
     "subject": "Chuyên môn",
     "certificates": "Chứng chỉ & Thành tích",
-    "view_certificate": "Xem chứng chỉ"
+    "view_certificate": "Xem chứng chỉ",
+    "restore_purchases": "Khôi phục giao dịch",
+    "restore_purchases_hint": "Khôi phục các khóa học đã mua bằng tài khoản cửa hàng này",
+    "restore_success": "Đã đồng bộ các giao dịch đã mua",
+    "restore_empty": "Không tìm thấy giao dịch có thể khôi phục"
   },
   "edit_profile": {
     "title": "Chỉnh sửa hồ sơ",

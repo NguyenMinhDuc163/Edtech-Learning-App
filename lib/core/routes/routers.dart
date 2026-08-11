@@ -73,6 +73,8 @@ import 'package:ed_tech/modules/payment/screen/my_payments_screen.dart';
 import 'package:ed_tech/modules/payment/screen/invoice_detail_screen.dart';
 import 'package:ed_tech/modules/payment/bloc/payment_cubit.dart';
 import 'package:ed_tech/modules/payment/repository/payment_repo.dart';
+import 'package:ed_tech/modules/iap/bloc/iap_cubit.dart';
+import 'package:ed_tech/modules/iap/repository/iap_repository.dart';
 import 'package:ed_tech/modules/purchased_courses/screen/purchased_courses_screen.dart';
 import 'package:ed_tech/modules/purchased_courses/bloc/purchased_course_cubit.dart';
 import 'package:ed_tech/modules/purchased_courses/repository/purchased_course_repo.dart';
@@ -82,6 +84,7 @@ import 'package:ed_tech/modules/reviews/screen/review_screen.dart';
 import 'package:ed_tech/modules/reviews/bloc/review_cubit.dart';
 import 'package:ed_tech/modules/reviews/repository/review_repo.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 //part of in dart
@@ -168,11 +171,17 @@ class Routers {
         return MaterialPageRoute(
           settings: settings,
           builder:
-              (_) => DisposableProvider(
-                create: (BuildContext context) {
-                  return ProfileController();
-                },
-                child: ProfileScreen(),
+              (context) => RepositoryProvider(
+                create: (_) => IapRepository(apiClient: ApiClient()),
+                child: BlocProvider(
+                  create:
+                      (context) =>
+                          IapCubit(repository: context.read<IapRepository>()),
+                  child: DisposableProvider(
+                    create: (_) => ProfileController(),
+                    child: const ProfileScreen(),
+                  ),
+                ),
               ),
         );
       case EditProfileScreen.routeName:
@@ -298,13 +307,30 @@ class Routers {
         return MaterialPageRoute(
           settings: settings,
           builder:
-              (context) => RepositoryProvider(
-                create: (context) => CourseRepo(apiClient: ApiClient()),
-                child: BlocProvider(
-                  create:
-                      (context) =>
-                          CourseCubit(repo: context.read<CourseRepo>()),
-                  child: CourseDetailScreen(),
+              (context) => MultiRepositoryProvider(
+                providers: [
+                  RepositoryProvider(
+                    create: (_) => CourseRepo(apiClient: ApiClient()),
+                  ),
+                  RepositoryProvider(
+                    create: (_) => IapRepository(apiClient: ApiClient()),
+                  ),
+                ],
+                child: MultiBlocProvider(
+                  providers: [
+                    BlocProvider(
+                      create:
+                          (context) =>
+                              CourseCubit(repo: context.read<CourseRepo>()),
+                    ),
+                    BlocProvider(
+                      create:
+                          (context) => IapCubit(
+                            repository: context.read<IapRepository>(),
+                          ),
+                    ),
+                  ],
+                  child: const CourseDetailScreen(),
                 ),
               ),
         );
@@ -364,15 +390,28 @@ class Routers {
         return MaterialPageRoute(
           settings: settings,
           builder:
-              (context) => RepositoryProvider(
-                create: (context) => PaymentRepo(apiClient: ApiClient()),
-                child: BlocProvider(
-                  create:
-                      (context) =>
-                          PaymentCubit(repo: context.read<PaymentRepo>()),
-                  child: const OrderConfirmationScreen(),
-                ),
-              ),
+              (context) =>
+                  kIsWeb
+                      ? RepositoryProvider(
+                        create: (_) => PaymentRepo(apiClient: ApiClient()),
+                        child: BlocProvider(
+                          create:
+                              (context) => PaymentCubit(
+                                repo: context.read<PaymentRepo>(),
+                              ),
+                          child: const OrderConfirmationScreen(),
+                        ),
+                      )
+                      : RepositoryProvider(
+                        create: (_) => IapRepository(apiClient: ApiClient()),
+                        child: BlocProvider(
+                          create:
+                              (context) => IapCubit(
+                                repository: context.read<IapRepository>(),
+                              ),
+                          child: const OrderConfirmationScreen(),
+                        ),
+                      ),
         );
       case PaymentWebViewScreen.routeName:
         return MaterialPageRoute(
@@ -441,7 +480,8 @@ class Routers {
                     create: (context) => ChatBotRepo(apiClient: ApiClient()),
                   ),
                   RepositoryProvider(
-                    create: (context) => ChatSessionsRepo(apiClient: ApiClient()),
+                    create:
+                        (context) => ChatSessionsRepo(apiClient: ApiClient()),
                   ),
                 ],
                 child: MultiBlocProvider(
@@ -453,8 +493,9 @@ class Routers {
                     ),
                     BlocProvider(
                       create:
-                          (context) =>
-                              ChatHistoryCubit(repo: context.read<ChatSessionsRepo>()),
+                          (context) => ChatHistoryCubit(
+                            repo: context.read<ChatSessionsRepo>(),
+                          ),
                     ),
                   ],
                   child: DisposableProvider(
@@ -474,7 +515,8 @@ class Routers {
                     create: (context) => ChatBotRepo(apiClient: ApiClient()),
                   ),
                   RepositoryProvider(
-                    create: (context) => ChatSessionsRepo(apiClient: ApiClient()),
+                    create:
+                        (context) => ChatSessionsRepo(apiClient: ApiClient()),
                   ),
                 ],
                 child: MultiBlocProvider(
@@ -486,8 +528,9 @@ class Routers {
                     ),
                     BlocProvider(
                       create:
-                          (context) =>
-                              ChatHistoryCubit(repo: context.read<ChatSessionsRepo>()),
+                          (context) => ChatHistoryCubit(
+                            repo: context.read<ChatSessionsRepo>(),
+                          ),
                     ),
                   ],
                   child: DisposableProvider(

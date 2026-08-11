@@ -92,7 +92,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                     const SizedBox(height: 32),
                     _buildBuyerInfo(invoice.buyer),
                     const SizedBox(height: 32),
-                    _buildCourseInfo(invoice.course),
+                    _buildCourseInfo(invoice.course, invoice),
                     const SizedBox(height: 32),
                     _buildPaymentInfo(invoice),
                     if (invoice.refunds != null &&
@@ -219,7 +219,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     );
   }
 
-  Widget _buildCourseInfo(CourseInfo? course) {
+  Widget _buildCourseInfo(CourseInfo? course, InvoiceData invoice) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -272,7 +272,9 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               const SizedBox(height: 12),
               _buildInfoRow(
                 'payment.course_price'.tr(),
-                course?.price.formatCurrency() ?? '0 ₫',
+                invoice.isIap
+                    ? _formatAmount(invoice.amount, invoice.currency)
+                    : course?.price.formatCurrency() ?? '0 ₫',
               ),
             ],
           ),
@@ -325,7 +327,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                     ),
                   ),
                   Text(
-                    invoice.amount.formatCurrency(),
+                    _formatAmount(invoice.amount, invoice.currency),
                     style: AppTextStyles.textHeader2.copyWith(
                       color: AppColors.text,
                       fontWeight: FontWeight.bold,
@@ -430,7 +432,6 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     );
   }
 
-
   String _formatDate(String? dateString) {
     if (dateString == null || dateString.isEmpty) return '-';
     try {
@@ -439,6 +440,15 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     } catch (e) {
       return dateString;
     }
+  }
+
+  String _formatAmount(String? amount, String? currency) {
+    if (currency == null || currency.isEmpty || currency == 'VND') {
+      return amount.formatCurrency();
+    }
+    final value = double.tryParse(amount ?? '');
+    if (value == null) return amount ?? '-';
+    return NumberFormat.simpleCurrency(name: currency).format(value);
   }
 
   String _getStatusText(String? status) {
