@@ -10,10 +10,9 @@ files after actual product domains, such as `overview.md`, `billing.md`,
 
 ## Current Product Contract
 
-No consumer-specific product contract is shipped in this generic directory.
-The upstream `repository-harness` contract lives in the root README, current
-workflow and architecture documents, lasting decisions, optional orchestration
-contract, implementation, and executable tests.
+- `revenuecat-store-setup.md`: exact Apple App Store and Google Play setup,
+  credential boundaries, Pub/Sub troubleshooting, and verification checkpoints
+  for RevenueCat mobile purchases.
 
 ## Update Rule
 
