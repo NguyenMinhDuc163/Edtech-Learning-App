@@ -13,6 +13,8 @@ files after actual product domains, such as `overview.md`, `billing.md`,
 - `revenuecat-store-setup.md`: exact Apple App Store and Google Play setup,
   credential boundaries, Pub/Sub troubleshooting, and verification checkpoints
   for RevenueCat mobile purchases.
+- `mobile-iap-handoff.md`: current Flutter IAP architecture, implementation
+  status, Android/iOS test handoff, known failures, and remaining work.
 
 ## Update Rule
 
