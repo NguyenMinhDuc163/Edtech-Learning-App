@@ -165,6 +165,41 @@ From the RevenueCat Apple app page:
 - Do not confuse the RevenueCat App ID with the Apple numeric app ID, Bundle
   ID, or public SDK key.
 
+### 6. Create and attach a non-consumable course product
+
+For every paid course sold as a lifetime purchase:
+
+1. In App Store Connect, open the app, then
+   `Monetization -> In-App Purchases`.
+2. Create a `Non-Consumable` product. The Product ID must match the backend
+   mapping exactly; it cannot be reused after creation.
+3. Configure at least one localization, price schedule, country or region
+   availability, and an App Review Screenshot.
+4. If RevenueCat reports `MISSING_METADATA`, open the product in App Store
+   Connect and check the App Review Screenshot first, then every required
+   localization, pricing, and availability field.
+5. Wait until the store status becomes `Ready to Submit`. Metadata propagation
+   to Sandbox or RevenueCat can take up to one hour.
+6. In RevenueCat, open `Product catalog -> Products -> Import products`, select
+   the App Store app, and import the exact Product ID.
+7. Open `Product catalog -> Entitlements`, select the course entitlement, and
+   attach the imported App Store product.
+8. Confirm the product page lists the expected entitlement under
+   `Associated Entitlements`.
+
+The current Flutter implementation loads products directly with
+`Purchases.getProducts`. Therefore `No associated offerings` is expected and
+does not block checkout. Do not create an Offering merely to remove that
+dashboard message.
+
+The first non-consumable product must be added to and submitted with a new app
+version. `Ready to Submit` means the metadata is complete; it does not mean the
+product is approved or available in production.
+
+Current course 28 identifiers are documented in
+`docs/product/mobile-iap-handoff.md`; do not duplicate public or private keys
+in this runbook.
+
 ## Google Play Setup
 
 ### 1. Create the RevenueCat Google Play app
@@ -374,6 +409,11 @@ Apple:
 - Separate App Store Connect API key validates.
 - Vendor Number is real, not a placeholder.
 - Production and Sandbox server notification URLs use RevenueCat and Version 2.
+- App Store product is imported into the correct RevenueCat Apple app.
+- Product is attached to the matching course entitlement.
+- `No associated offerings` is accepted for the direct-product implementation.
+- Backend has an active `IOS` + `APP_STORE` product mapping.
+- The first non-consumable is included with a new app version submission.
 - Flutter uses the platform Apple public SDK key, not a Test Store key.
 
 Google:

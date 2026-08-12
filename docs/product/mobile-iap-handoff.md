@@ -87,9 +87,20 @@ Khong doi Product ID sau khi product da duoc tao hoac co giao dich.
   key da duoc cau hinh.
 - Xcode Runner da khai bao In-App Purchase capability. Podfile, Xcode project
   va Flutter AppFramework deu dung deployment target iOS 15.0.
-- Apple product cho course 28 va sandbox purchase chua duoc xac nhan hoan tat.
-- Can tao non-consumable product cung identifier, import vao RevenueCat va
-  attach vao `course_28_access` truoc khi test.
+- App Store Connect da co non-consumable product
+  `edtech.course.28.lifetime`, display name `Mo khoa khoa hoc 28 tron doi`,
+  availability tat ca quoc gia/vung va gia co base country Vietnam.
+- Product da duoc import vao RevenueCat Apple app, co type `Non-consumable`,
+  Store Status `Ready to Submit` va da attach vao entitlement
+  `course_28_access`.
+- `No associated offerings` la dung voi implementation hien tai vi Flutter
+  goi `Purchases.getProducts` truc tiep bang Product ID; khong can tao Offering.
+- Backend production da co mapping active `IOS` + `APP_STORE` cho course 28,
+  product va entitlement tren.
+- `No transactions yet` la binh thuong truoc khi co giao dich Sandbox/TestFlight.
+- Chua xac nhan Apple Server Notifications da duoc dat cho ca Production va
+  Sandbox, Version 2.
+- Chua submit IAP cung app version moi va chua xac nhan purchase iOS end-to-end.
 
 ### Backend
 
@@ -183,15 +194,50 @@ Khong can dua app ra Production/Public de test; Internal testing la du.
 
 ## 9. Cach test iOS dung
 
-1. Tao non-consumable IAP trong App Store Connect voi Product ID chinh xac.
-2. Dien metadata, pricing va availability; xu ly agreement/tax/banking neu Apple
-   yeu cau.
-3. Import product vao RevenueCat Apple app.
-4. Attach product vao entitlement `course_28_access`.
-5. Dam bao backend co iOS mapping active cho course 28.
-6. Test bang StoreKit configuration cho UI nhanh, sau do bat buoc test Sandbox
-   hoac TestFlight cho luong that.
-7. Xac nhan purchase, restore, reinstall va refund/revoke qua backend.
+1. App Store Connect phai co non-consumable IAP voi Product ID trung tuyet doi.
+2. Dien localization, pricing, availability va App Review Screenshot. Neu
+   RevenueCat bao `MISSING_METADATA`, uu tien kiem tra screenshot review va cac
+   truong bat buoc. Sau khi du metadata, Store Status phai la `Ready to Submit`.
+3. Trong RevenueCat, import product vao dung Apple app va attach vao
+   entitlement `course_28_access`.
+4. Trang product RevenueCat phai hien `Associated Entitlements` co
+   `course_28_access`. `No associated offerings` khong phai loi.
+5. Dat Apple Server Notification URL do RevenueCat cap vao App Store Connect
+   `App Information -> App Store Server Notifications` cho ca Production va
+   Sandbox, chon Version 2.
+6. Dam bao backend production co mot mapping iOS active cho course 28:
+
+```text
+platform       = IOS
+store          = APP_STORE
+product_id     = edtech.course.28.lifetime
+entitlement_id = course_28_access
+product_type   = NON_CONSUMABLE
+is_active      = true
+```
+
+7. Vi day la non-consumable dau tien, them IAP vao app version moi va submit IAP
+   cung binary; `Ready to Submit` chua co nghia la product da duoc Apple duyet.
+8. Test bang TestFlight/Sandbox. TestFlight dung moi truong Sandbox, khong thu
+   tien that.
+9. Sau purchase, xac nhan RevenueCat co transaction va backend webhook tra 2xx;
+   `iap_purchases` co ledger, registration `PAID` va course access la `FULL`.
+10. Test Restore Purchases, reinstall, duplicate sync va refund/revoke.
+
+### Loi CocoaPods khi them RevenueCat
+
+Neu CI dung tai:
+
+```text
+There were changes to the podfile in deployment mode:
+A purchases_flutter
+```
+
+thi `pubspec.lock` da co `purchases_flutter` nhung `ios/Podfile.lock` chua dong
+bo. `pod install --deployment` cam CocoaPods cap nhat lockfile. Fastlane hien
+dung `bundle exec pod install` de runner duoc phep resolve plugin. Ve lau dai,
+nen generate va commit `ios/Podfile.lock` tu moi truong macOS/CocoaPods cung
+version voi CI, sau do co the bat lai deployment mode.
 
 ## 10. Bang chan doan loi
 
@@ -255,10 +301,10 @@ Chi user tu thuc hien build, upload va deploy.
 
 ## 14. Viec tiep theo uu tien
 
-1. Hoan tat va xac minh Android Internal testing install.
-2. Xac nhan Google Play tra product details va gia 10,000 VND.
-3. Chay purchase test va xac nhan backend cap quyen `FULL`.
-4. Kiem tra RevenueCat webhook, restore va refund/revoke.
-5. Hoan tat App Store product va iOS sandbox/TestFlight.
-6. Sua debug curl logger de khong in bearer token.
-7. Bo sung unit/widget/integration tests cho cac state loi da gap.
+1. Xac nhan Apple Server Notifications Production va Sandbox deu dung URL
+   RevenueCat va Version 2.
+2. Them non-consumable iOS dau tien vao app version moi va submit cung binary.
+3. Chay purchase TestFlight/Sandbox va xac nhan backend cap quyen `FULL`.
+4. Test iOS restore, reinstall va refund/revoke.
+5. Sua debug curl logger de khong in bearer token.
+6. Bo sung unit/widget/integration tests cho cac state loi da gap.
