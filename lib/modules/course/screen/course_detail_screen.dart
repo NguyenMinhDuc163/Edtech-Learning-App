@@ -581,11 +581,7 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
   Future<void> _handleBuyAction(BuildContext context) async {
     final productId =
         widget.courseDetail?.purchase?.mobileIap?.productId as String?;
-    if (!_canBuy ||
-        (!kIsWeb &&
-            (productId == null ||
-                productId.isEmpty ||
-                _storeProduct == null))) {
+    if (!_canBuy || (!kIsWeb && (productId == null || productId.isEmpty))) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('payment.iap_unavailable'.tr())));
@@ -781,9 +777,6 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
   }
 
   Widget _buildBuyButton(BuildContext context) {
-    final iapState = kIsWeb ? null : context.watch<IapCubit>().state;
-    final productReady = kIsWeb || iapState is IapReady;
-    final loading = iapState is IapLoading;
     return Container(
       height: 50,
       decoration: BoxDecoration(
@@ -802,17 +795,7 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
         ],
       ),
       child: TextButton(
-        onPressed:
-            productReady
-                ? () => _handleBuyAction(context)
-                : iapState is IapFailure
-                ? () {
-                  final id =
-                      widget.courseDetail?.purchase?.mobileIap?.productId
-                          as String?;
-                  if (id != null) context.read<IapCubit>().loadProduct(id);
-                }
-                : null,
+        onPressed: () => _handleBuyAction(context),
         style: TextButton.styleFrom(
           backgroundColor: Colors.transparent,
           shape: RoundedRectangleBorder(
@@ -823,7 +806,7 @@ class _CourseDetailContentState extends State<_CourseDetailContent> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              loading ? 'payment.loading'.tr() : 'course.buy_now'.tr(),
+              'course.buy_now'.tr(),
               style: AppTextStyles.button.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

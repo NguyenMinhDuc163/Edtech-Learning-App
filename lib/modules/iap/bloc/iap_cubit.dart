@@ -47,25 +47,7 @@ class IapCubit extends Cubit<IapState> {
     emit(IapPurchasing(product));
     try {
       await revenueCatService.purchase(product);
-      final sync = await repository.syncPurchase(
-        reason: 'PURCHASE',
-        courseId: courseId,
-        productId: productId,
-      );
-      if (sync.isActive) {
-        emit(IapSuccess(sync.activatedCourseIds));
-        return;
-      }
-
-      for (final delay in const [1, 2, 4]) {
-        await Future<void>.delayed(Duration(seconds: delay));
-        final status = await repository.getStatus(courseId);
-        if (status.accessLevel == 'FULL') {
-          emit(const IapSuccess([]));
-          return;
-        }
-      }
-      emit(const IapPending());
+      await _reconcileCompletedPurchase(courseId, productId);
     } on IapException catch (error) {
       if (error.cancelled) {
         emit(IapReady(product));
@@ -79,6 +61,41 @@ class IapCubit extends Cubit<IapState> {
     } catch (error) {
       emit(IapFailure(error.toString(), product: product));
     }
+  }
+
+  Future<void> _reconcileCompletedPurchase(
+    String courseId,
+    String productId, {
+    String reason = 'PURCHASE',
+  }) async {
+    try {
+      final sync = await repository.syncPurchase(
+        reason: reason,
+        courseId: courseId,
+        productId: productId,
+      );
+      if (sync.isActive) {
+        emit(IapSuccess(sync.activatedCourseIds));
+        return;
+      }
+    } catch (_) {
+      // The Store purchase is complete. Continue polling instead of reporting
+      // a payment failure while backend reconciliation catches up.
+    }
+
+    for (final delay in const [1, 2, 4]) {
+      await Future<void>.delayed(Duration(seconds: delay));
+      try {
+        final status = await repository.getStatus(courseId);
+        if (status.accessLevel == 'FULL') {
+          emit(const IapSuccess([]));
+          return;
+        }
+      } catch (_) {
+        // Keep the confirmed Store purchase pending until restore/retry.
+      }
+    }
+    emit(const IapPending());
   }
 
   Future<void> restore() async {
@@ -111,16 +128,7 @@ class IapCubit extends Cubit<IapState> {
   ) async {
     try {
       await revenueCatService.restorePurchases();
-      final sync = await repository.syncPurchase(
-        reason: 'RESTORE',
-        courseId: courseId,
-        productId: productId,
-      );
-      if (sync.isActive) {
-        emit(const IapSuccess([]));
-      } else {
-        emit(const IapPending());
-      }
+      await _reconcileCompletedPurchase(courseId, productId, reason: 'RESTORE');
     } catch (error) {
       emit(IapFailure(error.toString(), product: product));
     }

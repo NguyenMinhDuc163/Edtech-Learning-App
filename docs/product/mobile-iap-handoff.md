@@ -1,6 +1,6 @@
 # Mobile IAP Handoff
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 Tai lieu nay la diem ban giao cho agent tiep tuc trien khai va kiem thu IAP tren
 Flutter cho Android va iOS. Khong ghi secret, private key, service-account JSON
@@ -60,8 +60,13 @@ Khong doi Product ID sau khi product da duoc tao hoac co giao dich.
 - Android main manifest da khai bao `com.android.vending.BILLING`.
 - Android merged manifest co `com.google.android.gms.permission.AD_ID` do app
   dung Google Mobile Ads.
-- AAB release `2.0.0+71` da tung build thanh cong va co Billing permission.
+- Release hien tai la `2.0.0+72`; xem ket qua build moi nhat trong working tree
+  thay vi dung lai artifact `2.0.0+71`.
 - Purchase, restore, sync, pending va polling status da duoc implement.
+- Nut `Mua ngay` khong doi thanh noi dung ky thuat trong luc tai product. Man
+  xac nhan tu tai StoreProduct va hien nut thanh toan dung ten Store hien tai.
+- Khi payment sheet lam app `inactive`, man xac nhan van duoc giu phia sau.
+  Khi app that su `paused`, privacy overlay van che noi dung.
 
 ### Android external configuration
 
@@ -80,6 +85,8 @@ Khong doi Product ID sau khi product da duoc tao hoac co giao dich.
 
 - RevenueCat Apple app, App Store In-App Purchase key va App Store Connect API
   key da duoc cau hinh.
+- Xcode Runner da khai bao In-App Purchase capability. Podfile, Xcode project
+  va Flutter AppFramework deu dung deployment target iOS 15.0.
 - Apple product cho course 28 va sandbox purchase chua duoc xac nhan hoan tat.
 - Can tao non-consumable product cung identifier, import vao RevenueCat va
   attach vao `course_28_access` truoc khi test.
@@ -152,6 +159,10 @@ flow.
 9. App chi bao thanh cong khi backend tra quyen `FULL`; neu chua co thi hien
    pending.
 
+Sau khi Store da thu tien, loi sync tam thoi khong duoc hien nhu loi thanh
+toan. App giu trang thai pending de nguoi dung co the restore/sync lai trong
+khi webhook va backend reconciliation hoan tat.
+
 Restore dung cung RevenueCat App User ID do backend cap va goi sync voi reason
 `RESTORE`.
 
@@ -222,29 +233,25 @@ Khong commit server secret vao env mobile. Khi share log, redact Authorization.
 
 ## 13. Working tree va quyen thao tac
 
-Tai thoi diem ban giao, working tree mobile co thay doi chua commit o:
+Agent tiep theo phai chay `git status --short` va doc diff hien tai truoc khi
+sua. Khong dua vao danh sach working tree cu trong tai lieu, khong revert hoac
+ghi de thay doi chua commit cua user.
 
-```text
-SPEC.md
-android/app/src/main/AndroidManifest.xml
-lib/core/constants/api_path.g.dart
-pubspec.yaml
-```
+Agent khong duoc build hoac chay Flutter. Build/run la viec cua user; khong suy
+dien quyen build tu cac cau nhu "de tien build", "chuan bi de build" hay yeu cau
+sua UI. Khi validation tinh can dung Flutter/Dart SDK, tat ca lenh phai di qua
+`fvm`.
 
-Agent tiep theo phai doc diff va giu lai thay doi cua user; khong revert hoac ghi
-de.
+Khong duoc tu y thuc hien cac thao tac sau:
 
-Khong duoc tu y thuc hien cac thao tac sau neu user chua cho phep ro rang trong
-turn hien tai:
-
-- Build APK/AAB/IPA.
+- Build APK/AAB/IPA hoac chay Flutter app.
 - Chay hoac dung app/dev server/backend.
 - Upload len Play Console/App Store Connect/TestFlight.
 - Deploy, restart container hoac thay image.
 - Chay migration hoac cap nhat database.
 - Commit/push Git.
 
-Khi duoc cho phep build, quyen do khong tu dong mo rong sang upload/deploy.
+Chi user tu thuc hien build, upload va deploy.
 
 ## 14. Viec tiep theo uu tien
 

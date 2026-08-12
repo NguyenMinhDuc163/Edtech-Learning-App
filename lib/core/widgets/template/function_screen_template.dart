@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:ed_tech/core/ads/ad_frequency_manager.dart';
 import 'package:ed_tech/core/constants/icon_path.dart';
 import 'package:ed_tech/core/theme/app_colors.dart';
 import 'package:ed_tech/core/theme/app_pad.dart';
@@ -72,15 +73,21 @@ class _FunctionScreenTemplateState extends State<FunctionScreenTemplate>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     try {
-      if (state == AppLifecycleState.paused ||
-          state == AppLifecycleState.inactive) {
-        setState(() => isOpacity = true);
+      if (state == AppLifecycleState.paused) {
+        _setOpacity(true);
+      } else if (state == AppLifecycleState.inactive) {
+        _setOpacity(!AdFrequencyManager.instance.isPaymentFlowActive);
       } else if (state == AppLifecycleState.resumed) {
-        setState(() => isOpacity = false);
+        _setOpacity(false);
       }
     } catch (e) {
       print(e);
     }
+  }
+
+  void _setOpacity(bool value) {
+    if (!mounted || isOpacity == value) return;
+    setState(() => isOpacity = value);
   }
 
   @override
@@ -160,7 +167,7 @@ class _FunctionScreenTemplateState extends State<FunctionScreenTemplate>
                     },
                   )
                   : IconButton(
-                    icon: Icon(Icons.arrow_back, color: AppColors.divider,),
+                    icon: Icon(Icons.arrow_back, color: AppColors.divider),
                     onPressed: () {
                       if (widget.onBack != null) {
                         widget.onBack!();

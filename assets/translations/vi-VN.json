@@ -239,8 +239,9 @@
     "iap_unavailable": "Khóa học này hiện chưa thể mua trên ứng dụng",
     "iap_pending": "Giao dịch đang được cửa hàng xử lý. Quyền truy cập sẽ tự động cập nhật sau khi hoàn tất.",
     "store_price": "Giá trên cửa hàng",
-    "store_managed_notice": "Thanh toán được xử lý an toàn bởi App Store hoặc Google Play.",
-    "pay_with_store": "Thanh toán qua cửa hàng",
+    "lifetime_access_notice": "Thanh toán một lần để truy cập trọn đời khóa học này.",
+    "pay_with_app_store": "Thanh toán qua App Store",
+    "pay_with_google_play": "Thanh toán qua Google Play",
     "invalid_order": "Thông tin đơn hàng không hợp lệ"
   },
   "review": {

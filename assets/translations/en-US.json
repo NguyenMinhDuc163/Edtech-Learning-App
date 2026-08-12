@@ -239,8 +239,9 @@
     "iap_unavailable": "This course is not currently available for in-app purchase",
     "iap_pending": "The store is processing this purchase. Access will update automatically when it completes.",
     "store_price": "Store price",
-    "store_managed_notice": "Payment is securely processed by the App Store or Google Play.",
-    "pay_with_store": "Pay with store",
+    "lifetime_access_notice": "Pay once for lifetime access to this course.",
+    "pay_with_app_store": "Pay with App Store",
+    "pay_with_google_play": "Pay with Google Play",
     "invalid_order": "Invalid order information"
   },
   "review": {

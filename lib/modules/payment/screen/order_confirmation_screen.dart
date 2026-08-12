@@ -23,6 +23,11 @@ class OrderConfirmationScreen extends StatefulWidget {
 class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   bool _requestedProduct = false;
 
+  String get _storePaymentButtonKey =>
+      defaultTargetPlatform == TargetPlatform.iOS
+          ? 'payment.pay_with_app_store'
+          : 'payment.pay_with_google_play';
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -135,7 +140,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'payment.store_managed_notice'.tr(),
+                  'payment.lifetime_access_notice'.tr(),
                   style: AppTextStyles.textContent3.copyWith(
                     color: AppColors.color8F959E,
                   ),
@@ -164,7 +169,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     label: Text(
                       state is IapPurchasing
                           ? 'payment.processing_order'.tr()
-                          : 'payment.pay_with_store'.tr(),
+                          : _storePaymentButtonKey.tr(),
                     ),
                   ),
                 ),
