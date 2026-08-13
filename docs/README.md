@@ -31,6 +31,14 @@ signals, and application behavior remain authoritative. Harness adds navigation
 and working-memory structure around that truth; it does not install upstream
 `repository-harness` product documents over it.
 
+Product-specific handoff for this workspace:
+
+- `product/mobile-iap-handoff.md`: Flutter/Store/RevenueCat IAP handoff.
+- `Edtech-BE/ADMIN_COURSE_IAP_GUIDE.md`: canonical Admin course publication,
+  content availability and IAP product workflow (located in the backend repo).
+- `Edtech-BE/IAP_DATABASE_GUIDE.md`: database diagnosis and recovery reference
+  (located in the backend repo).
+
 ## Source-Repository Indexes
 
 The following material is deliberately outside the default installation:

@@ -1,6 +1,6 @@
 # Mobile IAP Handoff
 
-Last updated: 2026-08-12
+Last updated: 2026-08-13
 
 Tai lieu nay la diem ban giao cho agent tiep tuc trien khai va kiem thu IAP tren
 Flutter cho Android va iOS. Khong ghi secret, private key, service-account JSON
@@ -14,6 +14,8 @@ hoac token dang nhap vao tai lieu.
 - Backend `Edtech-BE/spec.md`: contract va quy tac cap quyen phia server.
 - Backend `Edtech-BE/IAP_DATABASE_GUIDE.md`: cac truong du lieu de hien thi va
   mo ban mot khoa hoc.
+- Backend `Edtech-BE/ADMIN_COURSE_IAP_GUIDE.md`: luong Admin hien tai de tao,
+  xuat ban, bat/tat noi dung, tao mapping Store va mo ban IAP cho khoa hoc moi.
 
 Khi tai lieu mau thuan, uu tien code/backend contract hien tai, sau do cap nhat
 lai tai lieu bi cu.
