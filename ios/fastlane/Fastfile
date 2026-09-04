@@ -113,6 +113,33 @@ def configure_ci_code_signing
   )
 end
 
+def validate_archive_version!(version)
+  archive_info_plist = File.expand_path(
+    "../build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Info.plist",
+    __dir__
+  )
+
+  unless File.file?(archive_info_plist)
+    UI.user_error!("Built archive app Info.plist was not found at #{archive_info_plist}.")
+  end
+
+  marketing_version = sh(
+    "/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' " \
+    "#{Shellwords.escape(archive_info_plist)}"
+  ).strip
+  build_number = sh(
+    "/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' " \
+    "#{Shellwords.escape(archive_info_plist)}"
+  ).strip
+
+  return if marketing_version == version[:name] && build_number == version[:number]
+
+  UI.user_error!(
+    "Archive version mismatch: expected #{version[:name]}+#{version[:number]}, " \
+    "found #{marketing_version}+#{build_number}."
+  )
+end
+
 platform :ios do
   APP_IDENTIFIER = "com.nguyenduc.edtech"
   TEAM_ID = "Q236Z72BGN"
@@ -169,6 +196,7 @@ platform :ios do
     ENV["IOS_PROVISIONING_PROFILE_NAME"] = match_provisioning_profile_name!
 
     build
+    validate_archive_version!(pubspec_version)
 
     upload_to_testflight(
       api_key: api_key,
