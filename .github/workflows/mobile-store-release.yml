@@ -30,11 +30,6 @@ on:
         options:
           - draft
           - completed
-      build_number:
-        description: "Optional build number greater than pubspec.yaml; leave blank to auto-increment"
-        type: string
-        required: false
-        default: ""
 
 env:
   # Flip these defaults in this root workflow when you want push-to-main
@@ -46,9 +41,6 @@ env:
   ANDROID_TRACK: "internal"
   # ANDROID_RELEASE_STATUS: draft, completed.
   ANDROID_RELEASE_STATUS: "completed"
-  # Optional one-time build-number override for a duplicate Store build.
-  # Leave blank to increment pubspec.yaml automatically.
-  MOBILE_BUILD_NUMBER: "5"
 
 concurrency:
   group: mobile-store-release-main
@@ -67,7 +59,6 @@ jobs:
       run_android: ${{ steps.config.outputs.run_android }}
       android_track: ${{ steps.config.outputs.android_track }}
       android_release_status: ${{ steps.config.outputs.android_release_status }}
-      build_number: ${{ steps.config.outputs.build_number }}
     steps:
       - name: Resolve platform toggles
         id: config
@@ -77,7 +68,6 @@ jobs:
           WORKFLOW_INPUT_RUN_ANDROID: ${{ inputs.run_android }}
           WORKFLOW_INPUT_ANDROID_TRACK: ${{ inputs.android_track }}
           WORKFLOW_INPUT_ANDROID_RELEASE_STATUS: ${{ inputs.android_release_status }}
-          WORKFLOW_INPUT_BUILD_NUMBER: ${{ inputs.build_number }}
         run: |
           set -euo pipefail
 
@@ -93,33 +83,25 @@ jobs:
           run_android="$RUN_ANDROID"
           android_track="$ANDROID_TRACK"
           android_release_status="$ANDROID_RELEASE_STATUS"
-          build_number="$MOBILE_BUILD_NUMBER"
 
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             run_ios="${WORKFLOW_INPUT_RUN_IOS:-$run_ios}"
             run_android="${WORKFLOW_INPUT_RUN_ANDROID:-$run_android}"
             android_track="${WORKFLOW_INPUT_ANDROID_TRACK:-$android_track}"
             android_release_status="${WORKFLOW_INPUT_ANDROID_RELEASE_STATUS:-$android_release_status}"
-            build_number="${WORKFLOW_INPUT_BUILD_NUMBER:-$build_number}"
           fi
 
           run_ios="$(normalize_bool "$run_ios")"
           run_android="$(normalize_bool "$run_android")"
-
-          if [ -n "$build_number" ] && ! [[ "$build_number" =~ ^[1-9][0-9]*$ ]]; then
-            echo "::error::build_number must be a positive integer or blank."
-            exit 1
-          fi
 
           {
             echo "run_ios=$run_ios"
             echo "run_android=$run_android"
             echo "android_track=$android_track"
             echo "android_release_status=$android_release_status"
-            echo "build_number=$build_number"
           } >> "$GITHUB_OUTPUT"
 
-          echo "Resolved release config: ios=$run_ios android=$run_android android_track=$android_track android_release_status=$android_release_status build_number=${build_number:-auto}"
+          echo "Resolved release config: ios=$run_ios android=$run_android android_track=$android_track android_release_status=$android_release_status"
 
   bump_version:
     name: Bump pubspec build number
@@ -139,8 +121,6 @@ jobs:
       - name: Increment build number
         id: bump
         shell: bash
-        env:
-          CONFIGURED_BUILD_NUMBER: ${{ needs.release_config.outputs.build_number }}
         run: |
           set -euo pipefail
           python3 <<'PY'
@@ -156,19 +136,7 @@ jobs:
             raise SystemExit("pubspec.yaml must contain version: x.y.z+n")
 
           version_name = match.group(1)
-          current_build_number = int(match.group(2))
-          configured_build_number = os.environ.get("CONFIGURED_BUILD_NUMBER", "")
-
-          if configured_build_number:
-            build_number = int(configured_build_number)
-            if build_number <= current_build_number:
-              raise SystemExit(
-                  "Configured build_number must be greater than the current "
-                  f"pubspec.yaml build number ({current_build_number})."
-              )
-          else:
-            build_number = current_build_number + 1
-
+          build_number = int(match.group(2)) + 1
           new_line = f"version: {version_name}+{build_number}"
           text = pattern.sub(new_line, text, count=1)
           path.write_text(text)
