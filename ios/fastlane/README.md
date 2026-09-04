@@ -85,7 +85,7 @@ APP_STORE_CONNECT_API_KEY_KEY_FILEPATH=/Users/seatech/Desktop/project/workspace/
 Workflow đang dùng:
 
 ```text
-.github/workflows/ios-testflight.yml
+.github/workflows/reusable-ios-testflight.yml
 ```
 
 Thêm secrets tại:
@@ -118,71 +118,44 @@ Copy nội dung `.p8` vào clipboard:
 pbcopy < /path/to/AuthKey_XXXXXXXXXX.p8
 ```
 
-### iOS Signing/Export
+### iOS signing với Fastlane Match
 
-Cần 3 secrets:
-
-```text
-IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
-IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
-IOS_APPSTORE_PROVISIONING_PROFILE_BASE64
-```
-
-Các secrets này cần vì GitHub macOS runner là máy sạch, không có sẵn certificate, keychain, hoặc provisioning profile như máy local.
-
-#### `IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64`
-
-Đây là nội dung base64 của certificate Apple Distribution dạng `.p12`.
-
-Cách export `.p12` trên máy Mac đang build local được:
-
-1. Mở `Keychain Access`.
-2. Vào `My Certificates`.
-3. Tìm certificate dạng `Apple Distribution: ...`.
-4. Chuột phải -> `Export`.
-5. Lưu dạng `.p12`.
-6. Đặt password.
-
-Copy base64 vào clipboard:
-
-```sh
-base64 -i /path/to/Certificates.p12 | pbcopy
-```
-
-Lệnh trên không in gì ra terminal vì output đã được đưa vào clipboard. Kiểm tra:
-
-```sh
-pbpaste | head -c 80
-pbpaste | wc -c
-```
-
-#### `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD`
-
-Password đã đặt khi export file `.p12`.
-
-#### `IOS_APPSTORE_PROVISIONING_PROFILE_BASE64`
-
-Đây là nội dung base64 của App Store provisioning profile cho bundle id:
+Cần thêm 4 secrets:
 
 ```text
-com.nguyenduc.edtech
+IOS_TEAM_ID
+MATCH_GIT_URL
+MATCH_PASSWORD
+MATCH_GIT_BASIC_AUTHORIZATION
 ```
 
-Cách tạo/download:
+Workflow dùng `setup_ci` và `match(readonly: true)` để đọc certificate Apple Distribution cùng App Store provisioning profile hiện có từ signing repository. Match tạo keychain tạm cho runner và trả về profile name để Fastlane giữ manual signing khi export IPA.
 
-`Apple Developer` -> `Certificates, Identifiers & Profiles` -> `Profiles`.
+#### `IOS_TEAM_ID`
 
-Chọn:
+Apple Team ID hiện tại:
 
-- Type: `App Store`
-- App ID: `com.nguyenduc.edtech`
-- Certificate: đúng Apple Distribution certificate đã export ra `.p12`
-
-Copy base64 vào clipboard:
-
-```sh
-base64 -i /path/to/EdTech_AppStore.mobileprovision | pbcopy
+```text
+Q236Z72BGN
 ```
+
+#### `MATCH_GIT_URL`
+
+URL signing repository:
+
+```text
+https://github.com/NguyenMinhDuc163/apple-signing.git
+```
+
+#### `MATCH_PASSWORD`
+
+Password mã hóa/decrypt của Match repository. Không phải Apple ID password, P12 password, hoặc PAT. Giữ nguyên chính xác giá trị hiện có.
+
+#### `MATCH_GIT_BASIC_AUTHORIZATION`
+
+Base64 của `NguyenMinhDuc163:PAT`; không phải raw PAT. PAT cần quyền Contents read-only cho repository `NguyenMinhDuc163/apple-signing`.
+
+Routine CI chỉ đọc assets có sẵn. Không dùng `readonly: false`, `force`, `match nuke`, hoặc thao tác create/renew/revoke certificate/profile.
 
 ## Luồng GitHub Actions
 
@@ -192,8 +165,8 @@ Khi push vào `main`, workflow sẽ:
 2. Commit lại version bump với `[skip ci]` để tránh vòng lặp CI vô hạn.
 3. Checkout lại `main` sau khi đã bump version.
 4. Ghi secret `.p8` ra file tạm trên runner.
-5. Cài Apple Distribution certificate và App Store provisioning profile vào runner.
-6. Chạy `bundle exec fastlane ios beta`.
+5. Chạy `bundle exec fastlane ios beta`; lane gọi `setup_ci`, Match read-only, lấy profile mapping, rồi cấu hình Runner Release manual signing.
+6. Build IPA và upload TestFlight.
 
 Nếu repo bật branch protection cho `main`, cần cho phép GitHub Actions push commit bump version, nếu không job đầu tiên sẽ fail.
 
@@ -225,13 +198,14 @@ Nếu truyền sai, giá trị bundle id của app có thể bị áp vào các 
 
 Archive đã thành công nhưng export IPA fail.
 
-Trên GitHub Actions, lỗi này thường nghĩa là runner chưa có đúng App Store provisioning profile/certificate.
+Trên GitHub Actions, lỗi này thường nghĩa là Match chưa cài đúng App Store provisioning profile/certificate hoặc không trả về profile mapping.
 
 Kiểm tra:
 
-- `IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64`
-- `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD`
-- `IOS_APPSTORE_PROVISIONING_PROFILE_BASE64`
+- `MATCH_GIT_URL`
+- `MATCH_GIT_BASIC_AUTHORIZATION`
+- `MATCH_PASSWORD` (không thay đổi hoặc tự tạo password mới)
+- profile `com.nguyenduc.edtech` trong signing repository
 - artifact `fastlane-gym-logs`
 
 ### `xcodebuild -exportArchive` exit status `64`

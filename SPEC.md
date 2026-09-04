@@ -1,392 +1,1053 @@
-# SPEC Mobile IAP - RevenueCat
+# SPEC: MIGRATE EDU-TECH iOS TESTFLIGHT SIGNING TO FASTLANE MATCH
 
-## 1. Thong tin tai lieu
+Repository:
+https://github.com/NguyenMinhDuc163/Edu-Tech
 
-- Du an: `Edu-Tech` (Flutter, iOS va Android).
-- Muc tieu: thay luong thanh toan VNPay trong app mobile bang In-App Purchase (IAP) thong qua RevenueCat.
-- Backend lien quan: xem `../Edtech-BE/spec.md`.
-- Trang thai tai lieu: dac ta de trien khai, chua phai code.
-- Loai san pham: mua mot lan de mo khoa vinh vien tung khoa hoc; khong phai subscription.
+Branch:
+main
 
-## 2. Muc tieu nghiep vu
+Signing repository:
+https://github.com/NguyenMinhDuc163/apple-signing
 
-1. App phat hanh tren App Store va Google Play chi mua noi dung so bang IAP cua store.
-2. Moi khoa hoc tra phi la mot san pham mua mot lan rieng biet.
-3. Sau khi mua thanh cong, tai khoan EduTech duoc mo khoa khoa hoc tren moi thiet bi va moi nen tang.
-4. Khoa hoc da mua tren web bang VNPay van truy cap duoc trong mobile.
-5. Mobile khong hien thi, mo WebView, dan link, hoac huong nguoi dung den VNPay/web checkout.
-6. Luong VNPay khong bi xoa; no tiep tuc phuc vu web.
-7. Quyen hoc do backend quyet dinh. Ket qua tra ve tu RevenueCat SDK chi la tin hieu de app yeu cau backend dong bo.
+==================================================
+1. MỤC TIÊU
+==================================================
 
-## 3. Hien trang can thay doi
+Migrate ONLY iOS TestFlight code signing của Edu-Tech từ cách cũ:
 
-### 3.1 Luong hien tai
+GitHub Secrets:
+- IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
+- IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+- IOS_APPSTORE_PROVISIONING_PROFILE_BASE64
 
-`CourseDetailScreen` -> `OrderConfirmationScreen` -> `PaymentCubit.createPayment()` -> `POST /api/create-qr` -> `PaymentWebViewScreen` -> VNPay.
+→ decode P12/profile
+→ create keychain
+→ security import
+→ build
 
-Backend tra `accessLevel = FULL` khi ton tai `course_registrations.payment_status = PAID`. Mobile dung `accessLevel` de mo noi dung va backend chi cap URL noi dung khi co quyen.
+sang:
 
-### 3.2 Van de hien tai
+Fastlane Match
+→ private repo NguyenMinhDuc163/apple-signing
+→ Apple Distribution certificate
+→ App Store provisioning profile
+→ temporary CI keychain
+→ build
+→ TestFlight
 
-- VNPay trong mobile khong phu hop cho noi dung so tren App Store/Google Play.
-- Bien `IS_PAYMENT` hien tai duoc app hieu la: neu khac `Y` thi coi nhu co full access. Cach nay khong dong bo voi backend va khong duoc tiep tuc.
-- `courses.is_paid` da co trong database nhung chua duoc dung day du de quyet dinh khoa hoc mien phi/tra phi.
-- Gia hien tai lay tu `courses.price` theo VND. Mobile IAP phai hien gia da dia phuong hoa tu store.
+Không viết lại CI từ đầu.
 
-## 4. Nguyen tac kien truc bat buoc
+Project hiện tại đã build/upload iOS TestFlight thành công trước migration.
+Phải giữ tối đa flow đang hoạt động và chỉ thay signing layer.
 
-### 4.1 Nguon su that
+==================================================
+2. THÔNG TIN SIGNING
+==================================================
 
-- Backend la nguon su that duy nhat cho quyen hoc.
-- `accessLevel` tu API la gia tri duy nhat quyet dinh co duoc xem noi dung day du hay khong.
-- `CustomerInfo`/entitlement tu RevenueCat khong duoc tu dong thay `accessLevel` tai client.
-- App chi hien thanh cong cuoi cung sau khi backend xac nhan `accessLevel = FULL`.
+Bundle ID:
 
-### 4.2 Danh tinh RevenueCat
+com.nguyenduc.edtech
 
-- Nguoi dung phai dang nhap EduTech truoc khi mua hoac restore.
-- App dung `revenuecatAppUserId` do backend cap, khong dung email, username hay ID bigint hien tai.
-- Khong cho phep mua o trang thai RevenueCat anonymous.
-- Khi doi tai khoan, phai goi `Purchases.logIn(newRevenuecatAppUserId)` truoc khi tai san pham/mua.
-- Khi logout, khong duoc de tai khoan sau nhin thay `CustomerInfo` cua tai khoan truoc. Service IAP phai chuyen ve trang thai chua xac dinh va chi `logIn` lai sau khi co user moi.
+Apple Team ID:
 
-### 4.3 Loai san pham
+Q236Z72BGN
 
-- iOS: Non-Consumable In-App Purchase.
-- Android: One-time product duoc cau hinh non-consumable trong RevenueCat.
-- Mot lan mua mo khoa vinh vien mot khoa hoc, tru truong hop store refund/revoke.
-- Khong consume san pham khoa hoc.
-- Khong cho phep mua lai khi backend da tra `owned = true`.
+Signing repo:
 
-### 4.4 Gia
+https://github.com/NguyenMinhDuc163/apple-signing.git
 
-- Mobile hien `StoreProduct.priceString` cua RevenueCat/store.
-- Khong format `courses.price` thanh gia IAP.
-- `courses.price` va `currency` chi la gia web/VNPay va thong tin tham khao.
-- Neu RevenueCat khong tai duoc StoreProduct, nut mua bi vo hieu hoa va hien loi tai lai; khong fallback sang VNPay.
+Signing repo đã có:
 
-## 5. Quy tac khoa/mo khoa
+certs/distribution/
+  Certificates.cer
+  Certificates.p12
 
-| Trang thai | Quyen | Giao dien mobile |
-|---|---|---|
-| Chua dang nhap | `FREE` | Xem preview; yeu cau dang nhap khi mua/hoc |
-| `course.isPaid = false`, da dang nhap | `FULL` | Hien `Bat dau hoc`, khong hien gia/nut mua |
-| Khoa hoc tra phi, da co registration `PAID` tu bat ky kenh nao | `FULL` | Hien `Tiep tuc hoc`, khong cho mua lai |
-| Khoa hoc tra phi, chua mua, IAP san sang | `FREE` | Hien gia store va nut mua IAP |
-| Khoa hoc tra phi, IAP tat hoac chua map product | `FREE` | Hien tam thoi chua the mua, khong mo khoa |
-| Purchase dang cho store/backend | `FREE` | Hien trang thai dang xu ly, cho phep kiem tra lai |
-| Store refund/revoke va khong con quyen tu nguon khac | `FREE` | Khoa lai noi dung khong phai preview |
+profiles/appstore/
+  AppStore_com.nguyenduc.edtech.mobileprovision
 
-Quy tac uu tien: neu backend tra `accessLevel = FULL`, app luon cho hoc, bat ke khoa hoc duoc mua tu VNPay, App Store, Google Play, admin grant hay mien phi.
+KHÔNG:
+- import lại certificate
+- generate certificate mới
+- renew certificate
+- renew provisioning profile
+- đổi bundle ID
+- sửa apple-signing repo
 
-## 6. Cong tac bat/tat
+Chỉ consume existing assets bằng Match readonly.
 
-### 6.1 Cong tac toan he thong
+==================================================
+3. CÁC FILE CHÍNH CẦN SỬA
+==================================================
 
-Dung cau hinh backend `MOBILE_IAP_ENABLED`:
+Bắt buộc:
 
-- `Y`: cho phep mobile tai san pham va bat dau mua.
-- `N`: an/vo hieu hoa checkout IAP.
-- Cong tac nay khong duoc doi `FREE` thanh `FULL`.
-- App lay gia tri moi qua API bootstrap/config, khong luu lau theo phien dang nhap.
+ios/fastlane/Matchfile                 # add
+ios/fastlane/Fastfile                  # modify
+.github/workflows/reusable-ios-testflight.yml
 
-### 6.2 Cong tac theo khoa hoc
+Nên update documentation:
 
-- `isPaid = false`: khoa hoc mien phi; user dang nhap co full access.
-- `isPaid = true`: can quyen mua/duoc cap.
-- `mobileIapEnabled = true`: khoa hoc tra phi duoc phep ban tren mobile neu co product active cua nen tang hien tai.
-- `mobileIapEnabled = false`: khoa hoc van tra phi va van bi khoa, chi khong the mua trong mobile.
-- `product.active = false`: chi tat product cua nen tang do.
+ios/fastlane/Appfile
+ios/fastlane/.env.example
+ios/fastlane/README.md
 
-Khi doi trang thai khoa hoc:
+Và search toàn repository để sửa documentation/config còn nhắc tới signing secrets cũ.
 
-- Tra phi -> mien phi: moi user da dang nhap duoc `FULL`; giao dich cu van duoc giu de audit.
-- Mien phi -> tra phi: user da co free registration truoc thoi diem chuyen doi duoc giu quyen (grandfathering); user moi phai mua.
+KHÔNG sửa nếu không thật sự cần:
 
-Khong su dung lai `UserService.isPayment` de mo khoa. Field `isPayment` trong login response duoc danh dau legacy va se bi loai khoi logic UI thanh toan.
+.github/workflows/mobile-store-release.yml
+.github/workflows/reusable-android-google-play.yml
+android/
+pubspec version bump logic
+Flutter setup
+CocoaPods flow
+artifact upload
+Xcode project
+application source code
 
-## 7. RevenueCat SDK
+mobile-store-release.yml hiện dùng:
 
-### 7.1 Dependency va cau hinh build
+secrets: inherit
 
-- Them package Flutter chinh thuc `purchases_flutter` phien ban tuong thich voi Flutter hien tai.
-- Debug/sandbox co the dung RevenueCat Test Store hoac sandbox key.
-- Release bat buoc dung public SDK key rieng cho iOS va Android.
-- Tuyet doi khong dua RevenueCat secret API key, webhook secret, App Store key hay Google service credential vao app.
-- API key duoc nap tu env/build configuration rieng theo platform va flavor.
-- Production khong duoc dung Test Store API key.
+và flow bump version → reusable iOS workflow đã hoạt động.
+Giữ nguyên architecture đó.
 
-Bundle hien tai:
+==================================================
+4. MATCHFILE
+==================================================
 
-- iOS bundle ID: `com.nguyenduc.edtech`.
-- Android application ID: `com.nguyenduc.edtech.ed_tech`.
+Add:
 
-### 7.2 IAP service
+ios/fastlane/Matchfile
 
-Tao mot service duy nhat, vi du `RevenueCatService`, chiu trach nhiem:
+Nội dung:
 
-- Configure SDK dung mot lan trong lifecycle.
-- Chon public key theo `Platform.isIOS`/`Platform.isAndroid`.
-- Nhan `revenuecatAppUserId` tu backend va goi `Purchases.logIn`.
-- Tai `StoreProduct` theo `productId` va category non-subscription.
-- Purchase StoreProduct.
-- Restore purchases.
-- Doc `CustomerInfo` de hien trang thai tam thoi.
-- Chuyen loi SDK thanh cac ma loi noi bo.
-- Khong chua logic cap quyen khoa hoc.
+git_url(ENV.fetch("MATCH_GIT_URL"))
+storage_mode("git")
+git_branch("main")
 
-Khi hien danh sach nhieu khoa hoc, service gom cac `productId` duy nhat va tai theo batch trong mot request `getProducts`; khong goi store tuan tu cho tung card. Cache StoreProduct theo `platform + productId` trong phien app, cho phep refresh khi app resume hoac user bam thu lai.
+app_identifier([
+  "com.nguyenduc.edtech"
+])
 
-Flutter web khong khoi tao native IAP service. Neu repo nay duoc build cho web, web tiep tuc dung adapter VNPay rieng; code mobile khong duoc import `dart:io` theo cach lam hong web build.
+type("appstore")
 
-### 7.3 Khoi tao va login
+team_id(ENV["IOS_TEAM_ID"]) unless ENV["IOS_TEAM_ID"].to_s.strip.empty?
 
-1. App khoi dong va khoi tao cac service co ban.
-2. Sau khi co access token, goi `GET /api/mobile-iap/config`.
-3. Neu user la student va platform la iOS/Android, configure RevenueCat va `logIn(revenuecatAppUserId)`.
-4. Chi danh dau IAP ready khi App User ID tra ve trung voi ID backend.
-5. Social login phai luu day du user/backend identity truoc khi khoi tao IAP, giong login password.
-6. Neu configure/login RevenueCat loi, app van cho xem khoa hoc/preview; checkout hien loi co the thu lai.
+Không hard-code token/password.
 
-## 8. API contract mobile su dung
+Không dùng readonly trong Matchfile.
+readonly phải được đặt rõ trong Fastfile lane.
 
-Tat ca response duoi day nam trong envelope chung hien co cua `ApiClient`. Model FE phai parse dung mot cap `data` theo envelope thuc te, khong tao them cap long nhau.
+==================================================
+5. FASTFILE - NGUYÊN TẮC
+==================================================
 
-### 8.1 Lay cau hinh IAP
+Giữ nguyên:
 
-`GET /api/mobile-iap/config?platform=IOS|ANDROID`
+- pubspec_version
+- flutter_command
+- pod install
+- build_app
+- workspace Runner.xcworkspace
+- scheme Runner
+- Release configuration
+- archive path
+- IPA output path/name
+- upload_to_testflight
+- version/build logic
 
-Yeu cau: JWT, role STUDENT.
+Chỉ migrate signing.
 
-```json
-{
-  "enabled": true,
-  "platform": "IOS",
-  "revenuecatAppUserId": "6a26b5e0-3fe2-4bad-9315-2d5162219faa"
-}
-```
+==================================================
+6. FASTFILE - setup_ci
+==================================================
 
-Khong co public SDK key trong response; key nam trong build config cua app.
+Trong lane:
 
-### 8.2 Course detail/list
+ios beta
 
-App gui `platform=IOS|ANDROID` khi lay course detail. Cac field thanh toan toi thieu:
+PHẢI gọi:
 
-```json
-{
-  "courseId": "123",
-  "isPaid": true,
-  "accessLevel": "FREE",
-  "purchase": {
-    "owned": false,
-    "state": "AVAILABLE",
-    "mobileIap": {
-      "enabled": true,
-      "productId": "edtech.course.123.v1",
-      "entitlementId": "course_123"
-    }
-  }
-}
-```
+setup_ci
 
-`purchase.state` gom:
+trước Match.
 
-- `FREE_COURSE`
-- `OWNED`
-- `AVAILABLE`
-- `IAP_DISABLED`
-- `PRODUCT_NOT_CONFIGURED`
-- `UNAVAILABLE`
+Ví dụ architecture:
 
-App khong tu suy dien `AVAILABLE` chi tu `isPaid`.
+lane :beta do
+  setup_ci
 
-### 8.3 Dong bo sau purchase/restore
+  api_key = app_store_connect_api_key(...)
 
-`POST /api/mobile-iap/sync`
+  match(...)
 
-```json
-{
-  "reason": "PURCHASE",
-  "courseId": "123",
-  "productId": "edtech.course.123.v1"
-}
-```
-
-Voi restore:
-
-```json
-{
-  "reason": "RESTORE"
-}
-```
-
-Response:
-
-```json
-{
-  "status": "ACTIVE",
-  "courseId": "123",
-  "accessLevel": "FULL",
-  "paymentMethod": "APP_STORE"
-}
-```
-
-`status` gom `ACTIVE`, `PENDING`, `NOT_OWNED`, `PRODUCT_MISMATCH`, `IAP_DISABLED`.
-
-### 8.4 Kiem tra quyen
-
-`GET /api/mobile-iap/status/:courseId`
-
-```json
-{
-  "courseId": "123",
-  "accessLevel": "FULL",
-  "owned": true,
-  "source": "APP_STORE"
-}
-```
-
-## 9. Luong mua hang
-
-1. User mo chi tiet khoa hoc.
-2. App doc `accessLevel` va `purchase.state` tu backend.
-3. Neu `OWNED`/`FULL`, cho hoc ngay.
-4. Neu `AVAILABLE`, app tai StoreProduct dung `productId`.
-5. Man xac nhan hien ten khoa hoc va `StoreProduct.priceString`.
-6. User bam mua; app khoa nut de tranh double tap.
-7. Goi RevenueCat purchase cho StoreProduct non-subscription.
-8. Neu user cancel, tra UI ve binh thuong, khong bao purchase failed.
-9. Neu SDK bao thanh cong, goi `/api/mobile-iap/sync`.
-10. Neu backend tra `ACTIVE/FULL`, tai lai course detail va dieu huong den man thanh cong/khóa học.
-11. Neu backend tra `PENDING`, poll `/api/mobile-iap/status/:courseId` toi da 3 lan voi backoff 1s, 2s, 4s.
-12. Neu van pending, hien `Giao dich dang duoc xac minh`; khong mo khoa cuc bo. Khi user refresh/app resume thi dong bo lai.
-
-App khong gui gia, currency, userId hay ket qua `success=true` de backend tin tuong. `courseId` va `productId` chi la goi y; backend tu xac minh voi RevenueCat va mapping database.
-
-## 10. Restore purchases
-
-- Them nut `Khoi phuc giao dich` trong Profile/Settings, luon co tren iOS va Android khi da dang nhap.
-- Flow: `Purchases.restorePurchases()` -> `POST /api/mobile-iap/sync { reason: RESTORE }` -> refresh purchased courses va course detail.
-- Thanh cong nhung khong co giao dich: hien thong bao trung tinh `Khong tim thay giao dich co the khoi phuc`.
-- Neu receipt thuoc mot tai khoan EduTech khac theo restore policy, hien thong bao dang nhap dung tai khoan da mua hoac lien he ho tro; khong tu chuyen quyen.
-- Restore khong duoc tao duplicate registration/payment.
-
-## 11. UI/UX can trien khai
-
-### 11.1 Course list/detail
-
-- Khoa hoc mien phi: nhan `Mien phi`, khong hien gia VND nhu san pham IAP.
-- Khoa hoc tra phi chua mua: gia lay tu StoreProduct.
-- Khoa hoc da mua: nhan `Da so huu`/nut `Tiep tuc hoc`.
-- Product dang tai: skeleton/loader o vung gia, giu kich thuoc layout on dinh.
-- Product loi: `Khong the tai thong tin thanh toan` va nut thu lai.
-- IAP disabled/not configured: `Khoa hoc hien chua the mua tren thiet bi nay`.
-
-### 11.2 Order confirmation
-
-- Tai su dung bo cuc hien tai neu phu hop, nhung action phai goi IAP thay vi `PaymentCubit.createPayment`/WebView.
-- Hien gia store, ten store phu hop va noi dung duoc mo khoa.
-- Khong hien logo/text VNPay tren iOS/Android.
-- Khong hien gia backend neu StoreProduct chua tai xong.
-
-### 11.3 Trang thai loi
-
-Phan biet it nhat:
-
-- `USER_CANCELLED`: dong sheet/dialog, khong toast loi do.
-- `PAYMENT_PENDING`: giao dich dang cho xu ly.
-- `PRODUCT_NOT_FOUND`: cau hinh product sai/chua active.
-- `PURCHASE_NOT_ALLOWED`: store/account khong cho mua.
-- `NETWORK_ERROR`: cho thu lai.
-- `ALREADY_PURCHASED`: chay restore/sync roi refresh quyen.
-- `VERIFICATION_PENDING`: store thanh cong nhung backend chua cap quyen.
-- `ACCOUNT_CONFLICT`: purchase gan voi tai khoan EduTech khac.
-- `UNKNOWN`: thong bao chung va kem correlation ID neu backend tra ve.
-
-## 12. Thay doi module Flutter du kien
-
-```text
-lib/modules/iap/
-  model/
-    iap_config.dart
-    course_purchase_option.dart
-    iap_sync_response.dart
-  repository/
-    iap_repository.dart
-  service/
-    revenuecat_service.dart
-  bloc/
-    iap_cubit.dart
-    iap_state.dart
-  widget/
-    store_price.dart
-    restore_purchase_button.dart
-```
-
-- `PaymentCubit` va WebView VNPay khong con duoc goi tren iOS/Android.
-- Neu Flutter web van can VNPay, tach `CheckoutCoordinator` theo platform thay vi chen dieu kien rai rac.
-- `CourseDetailScreen` khong doc `UserService.isPayment` de tinh `_hasFullAccess`.
-- Sau thanh cong, `CourseCubit.getCourseDetail(courseId)` phai chay lai va man truoc nhan duoc ket qua thanh cong ro rang.
-- Ad manager chi tat quang cao trong thoi gian sheet thanh toan dang active; phai reset trong `finally` cho moi ket qua.
-
-## 13. Bao mat va logging
-
-- Khong log receipt, token store, secret key, webhook payload day du hay du lieu thanh toan nhay cam.
-- Co the log: internal user ID, RevenueCat App User ID da mask, course ID, product ID, event/correlation ID va trang thai.
-- Khong tin `productId`, `courseId`, gia hay user ID do client gui neu chua xac minh server-side.
-- Release build tat RevenueCat debug log.
-
-## 14. Kiem thu bat buoc
-
-### 14.1 Unit/widget test
-
-- Mapping course purchase state sang UI.
-- Gia luon lay tu StoreProduct.
-- `FULL` bo qua checkout va mo khoa.
-- `IAP_DISABLED` khong mo WebView/RevenueCat purchase.
-- User cancel khong hien payment failed.
-- Pending khong tu cap quyen.
-- Logout/login tai khoan khac khong tai su dung state IAP cu.
-
-### 14.2 Integration/sandbox
-
-- Mua moi tren iOS sandbox.
-- Mua moi tren Google Play license tester/internal track.
-- Double tap/double webhook khong tao hai quyen.
-- Reinstall va restore.
-- Dang nhap cung tai khoan tren thiet bi khac.
-- Khoa hoc mua VNPay tren web mo duoc trong mobile.
-- Refund/revoke khoa lai khoa hoc sau khi backend dong bo.
-- Product ID sai/khong active.
-- Webhook cham: app o `PENDING`, sau do refresh thanh `FULL`.
-- Global IAP off va per-course IAP off deu khong cap quyen mien phi.
-- Khoa hoc `isPaid=false` truy cap full sau dang nhap va khong goi store.
-
-## 15. Tieu chi nghiem thu FE
-
-- Khong con duong dan tu app mobile den VNPay/web checkout.
-- Tat ca purchase mobile di qua RevenueCat SDK va native store sheet.
-- App khong mo khoa truoc khi backend tra `FULL`.
-- Gia mobile trung voi gia store sheet theo locale.
-- Purchase/restore hoat dong cho tai khoan da dang nhap.
-- Khoa hoc da mua tu bat ky kenh nao khong bi moi mua lai.
-- Khoa hoc mien phi va tra phi tuan theo ma tran tai muc 5.
-- iOS/Android release khong chua Test Store key hay secret key.
-- Co nut restore va thong bao day du cho pending/account conflict.
-
-## 16. Ngoai pham vi
-
-- Subscription/thanh vien theo thang.
-- Gio hang va mua nhieu khoa hoc trong mot giao dich.
-- Coupon/discount do app tu tinh; discount mobile phai cau hinh tai store.
-- Refund IAP tu app; refund duoc xu ly boi App Store/Google Play/RevenueCat va backend nhan webhook.
-- Thay doi luong VNPay web ngoai nhung dieu chinh can thiet de dung chung quyen truy cap.
-
-## 17. Tai lieu tham chieu
-
-- RevenueCat Flutter SDK: https://www.revenuecat.com/docs/getting-started/installation/flutter
-- RevenueCat identifying customers: https://www.revenuecat.com/docs/customers/identifying-customers
-- RevenueCat non-subscription purchases: https://www.revenuecat.com/docs/platform-resources/non-subscriptions
-- RevenueCat restore purchases: https://www.revenuecat.com/docs/getting-started/restoring-purchases
-- Apple App Review Guideline 3.1.1: https://developer.apple.com/app-store/review/guidelines/
-- Google Play Payments policy: https://support.google.com/googleplay/android-developer/answer/9858738
+  ...
+
+  build
+
+  upload_to_testflight(...)
+end
+
+Không bỏ setup_ci.
+
+LÝ DO QUAN TRỌNG:
+
+Ở migration project trước, Match có thể decrypt/install signing asset nhưng build vẫn gặp vấn đề signing nếu không setup CI keychain đúng cách.
+
+setup_ci phải chịu trách nhiệm tạo temporary keychain cho GitHub Actions.
+
+KHÔNG tự tạo thêm manual signing keychain trong workflow.
+
+==================================================
+7. FASTFILE - APP STORE CONNECT API KEY
+==================================================
+
+Giữ cách auth bằng API key:
+
+api_key = app_store_connect_api_key(
+  key_id: ENV.fetch("APP_STORE_CONNECT_KEY_ID"),
+  issuer_id: ENV.fetch("APP_STORE_CONNECT_ISSUER_ID"),
+  key_filepath: ENV.fetch("APP_STORE_CONNECT_API_KEY_KEY_FILEPATH")
+)
+
+Không dùng:
+
+Apple ID/password
+FASTLANE_USER
+FASTLANE_PASSWORD
+interactive login
+
+==================================================
+8. FASTFILE - MATCH
+==================================================
+
+Trong lane ios beta thêm:
+
+match(
+  type: "appstore",
+  platform: "ios",
+  app_identifier: APP_IDENTIFIER,
+  readonly: true,
+  api_key: api_key
+)
+
+BẮT BUỘC:
+
+readonly: true
+
+Routine project CI chỉ được READ signing repo.
+
+Không được dùng:
+
+readonly: false
+force: true
+match nuke
+revoke
+generate new certificate
+
+Việc maintain/create/renew signing asset được xử lý riêng trong
+apple-signing maintenance workflow.
+
+==================================================
+9. LẤY PROVISIONING PROFILE TỪ MATCH
+==================================================
+
+Sau match, lấy mapping từ:
+
+Actions.lane_context[
+  SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING
+]
+
+Validate rằng mapping chứa:
+
+com.nguyenduc.edtech
+
+Ví dụ helper:
+
+def match_provisioning_profile_name!
+  profiles =
+    Actions.lane_context[
+      SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING
+    ]
+
+  unless profiles.is_a?(Hash)
+    UI.user_error!(
+      "Fastlane Match did not provide provisioning profile mapping."
+    )
+  end
+
+  profile_name =
+    profiles[APP_IDENTIFIER].to_s.strip
+
+  if profile_name.empty?
+    UI.user_error!(
+      "Fastlane Match did not provide an App Store profile for #{APP_IDENTIFIER}."
+    )
+  end
+
+  profile_name
+end
+
+Sau match:
+
+profile_name = match_provisioning_profile_name!
+ENV["IOS_PROVISIONING_PROFILE_NAME"] = profile_name
+
+Sau đó reuse build logic hiện tại.
+
+Mục tiêu là tận dụng code hiện có:
+
+configure_ci_code_signing
+build_export_options
+build
+
+Không cần rewrite build_app nếu không cần.
+
+==================================================
+10. SIGNING PHẢI VẪN MANUAL KHI BUILD
+==================================================
+
+Khi Match cung cấp profile name, Release build phải tiếp tục sử dụng:
+
+Apple Distribution
+
+và provisioning profile do Match trả về.
+
+Existing:
+
+configure_ci_code_signing
+
+có thể giữ nguyên.
+
+Expected:
+
+use_automatic_signing: false
+code_sign_identity: "Apple Distribution"
+profile_name: Match profile name
+
+Export options phải dùng:
+
+signingStyle: "manual"
+
+và:
+
+provisioningProfiles:
+  com.nguyenduc.edtech => Match profile name
+
+Không quay về automatic signing cho CI TestFlight sau khi Match đã cài profile.
+
+==================================================
+11. WORKFLOW SECRETS - REMOVE OLD SIGNING INPUTS
+==================================================
+
+Trong:
+
+.github/workflows/reusable-ios-testflight.yml
+
+xóa khỏi workflow_call.secrets:
+
+IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
+IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+IOS_APPSTORE_PROVISIONING_PROFILE_BASE64
+
+Thêm:
+
+IOS_TEAM_ID
+MATCH_GIT_URL
+MATCH_PASSWORD
+MATCH_GIT_BASIC_AUTHORIZATION
+
+Giữ:
+
+APP_STORE_CONNECT_KEY_ID
+APP_STORE_CONNECT_ISSUER_ID
+APP_STORE_CONNECT_API_KEY_P8
+
+==================================================
+12. WORKFLOW JOB ENV
+==================================================
+
+Job iOS cần expose:
+
+APP_STORE_CONNECT_KEY_ID
+APP_STORE_CONNECT_ISSUER_ID
+
+IOS_TEAM_ID
+
+MATCH_GIT_URL
+MATCH_PASSWORD
+MATCH_GIT_BASIC_AUTHORIZATION
+
+FASTLANE_SKIP_UPDATE_CHECK="1"
+FASTLANE_HIDE_CHANGELOG="1"
+
+Không expose raw old P12/profile secrets.
+
+==================================================
+13. VALIDATE REQUIRED SECRETS
+==================================================
+
+Validate đúng 7 Apple secrets:
+
+APP_STORE_CONNECT_KEY_ID
+APP_STORE_CONNECT_ISSUER_ID
+APP_STORE_CONNECT_API_KEY_P8
+
+IOS_TEAM_ID
+
+MATCH_GIT_URL
+MATCH_PASSWORD
+MATCH_GIT_BASIC_AUTHORIZATION
+
+Không validate:
+
+IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
+IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+IOS_APPSTORE_PROVISIONING_PROFILE_BASE64
+
+==================================================
+14. XÓA MANUAL SIGNING STEP
+==================================================
+
+Xóa toàn bộ step hiện tại:
+
+Install Apple signing assets
+
+Bao gồm toàn bộ logic:
+
+- base64 decode P12
+- base64 decode mobileprovision
+- create app-signing.keychain-db
+- uuidgen keychain password
+- security create-keychain
+- security unlock-keychain
+- security import P12
+- security set-key-partition-list
+- security list-keychains
+- security cms profile
+- copy mobileprovision vào ~/Library/MobileDevice/Provisioning Profiles
+- export IOS_PROVISIONING_PROFILE_NAME từ profile manual
+
+Sau migration không được còn manual security import signing certificate.
+
+Match + setup_ci chịu trách nhiệm việc này.
+
+==================================================
+15. APP STORE CONNECT P8
+==================================================
+
+Giữ việc tạo:
+
+$RUNNER_TEMP/AuthKey.p8
+
+Nhưng dùng env thay vì interpolate secret trực tiếp trong shell.
+
+Preferred:
+
+env:
+  APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+
+run:
+
+key_path="$RUNNER_TEMP/AuthKey.p8"
+
+printf '%s' "$APP_STORE_CONNECT_API_KEY_P8" > "$key_path"
+
+chmod 600 "$key_path"
+
+echo \
+  "APP_STORE_CONNECT_API_KEY_KEY_FILEPATH=$key_path" \
+  >> "$GITHUB_ENV"
+
+Validate PEM:
+
+BEGIN PRIVATE KEY
+END PRIVATE KEY
+
+Không dùng:
+
+echo "$APP_STORE_CONNECT_API_KEY_P8"
+
+Không print P8.
+
+Add cleanup cuối workflow:
+
+- name: Cleanup App Store Connect API key
+  if: always()
+  shell: bash
+  run: rm -f "$RUNNER_TEMP/AuthKey.p8"
+
+==================================================
+16. GITHUB AUTH CHO APPLE-SIGNING
+==================================================
+
+Edu-Tech và apple-signing là 2 repository khác nhau.
+
+KHÔNG dùng github.token/GITHUB_TOKEN của Edu-Tech để assume rằng nó đọc được apple-signing.
+
+Dùng:
+
+MATCH_GIT_BASIC_AUTHORIZATION
+
+đã lưu trong repository secrets.
+
+Nó phải là Base64 của:
+
+NguyenMinhDuc163:PAT
+
+PAT dùng cho normal CI:
+
+- Fine-grained PAT
+- chỉ access NguyenMinhDuc163/apple-signing
+- Contents: Read-only
+
+KHÔNG cần write access.
+
+MATCH_GIT_BASIC_AUTHORIZATION không phải raw PAT.
+
+MATCH_GIT_URL:
+
+https://github.com/NguyenMinhDuc163/apple-signing.git
+
+==================================================
+17. MATCH_PASSWORD - CẢNH BÁO LỖI ĐÃ TỪNG GẶP
+==================================================
+
+MATCH_PASSWORD là password dùng encrypt/decrypt Match repository.
+
+Nó KHÔNG phải:
+
+- password Apple ID
+- P12 password
+- PAT
+- App Store Connect key
+
+Không trim/chỉnh sửa giá trị.
+
+Không tự generate password mới.
+
+Nếu CI báo decrypt error:
+
+KHÔNG:
+- re-import cert
+- regenerate cert
+- nuke repo
+
+Trước tiên phải nghi ngờ MATCH_PASSWORD mismatch.
+
+Đã từng gặp trường hợp giá trị thực tế và GitHub Secret khác số byte.
+
+Nếu cần debug trên môi trường có value:
+
+printf '%s' "$MATCH_PASSWORD" | wc -c
+
+Không log nội dung password.
+
+==================================================
+18. P12 - CẢNH BÁO LỖI ĐÃ TỪNG GẶP
+==================================================
+
+Không tạo secret P12 password mới.
+
+Không import P12 từ Edu-Tech.
+
+P12 đã nằm encrypted trong:
+
+apple-signing/certs/distribution/
+
+Match xử lý certificate/private key.
+
+Đừng thêm:
+
+IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+
+trở lại chỉ vì security import gặp vấn đề.
+
+Sau migration không còn security import P12 thủ công.
+
+==================================================
+19. KEYCHAIN - CẢNH BÁO
+==================================================
+
+Không tự đoán path của Fastlane temporary keychain.
+
+Không tạo code kiểu:
+
+~/Library/Keychains/fastlane_tmp_keychain
+
+rồi tự escape/path transform.
+
+Project trước đã từng gặp lỗi vì "~" bị xử lý thành literal path và security không tìm thấy identity.
+
+Với Edu-Tech iOS:
+
+setup_ci
++
+match
+
+phải quản lý keychain.
+
+Không cần custom keychain path.
+
+==================================================
+20. BUNDLER - CẢNH BÁO
+==================================================
+
+Hiện ios/Gemfile.lock đã lock:
+
+fastlane 2.236.1
+
+Không update dependency chỉ để thực hiện migration.
+
+Không chạy:
+
+bundle update
+
+Không regenerate Gemfile.lock nếu không cần.
+
+Không đổi Ruby/Fastlane version nếu migration không yêu cầu.
+
+Workflow hiện dùng Ruby 4.0 và Fastlane hiện tại đã chạy được trước migration.
+
+Giữ nguyên Ruby setup để giảm phạm vi thay đổi.
+
+Nếu agent quyết định sửa Gemfile/Gemfile.lock thì phải có lý do cụ thể.
+
+Đã từng gặp Bundler frozen/checksum issue ở migration trước, do đó tránh thay lockfile không cần thiết.
+
+==================================================
+21. APPFILE
+==================================================
+
+Hiện Appfile có:
+
+apple_id("ngminhduc1603@icloud.com")
+
+Bỏ dòng này.
+
+Giữ:
+
+app_identifier("com.nguyenduc.edtech")
+team_id("Q236Z72BGN")
+
+Lý do:
+
+CI mới dùng App Store Connect API key.
+Không cần phụ thuộc Apple ID cá nhân.
+
+Không thay bằng Apple ID khác.
+
+==================================================
+22. ROOT RELEASE WORKFLOW
+==================================================
+
+Không rewrite:
+
+.github/workflows/mobile-store-release.yml
+
+Hiện flow:
+
+workflow_dispatch / push
+→ resolve release config
+→ bump pubspec build number
+→ commit [skip ci]
+→ reusable-ios-testflight.yml
+→ secrets: inherit
+
+đã hoạt động.
+
+Giữ nguyên.
+
+Chỉ reusable iOS workflow cần migration signing.
+
+==================================================
+23. EXISTING VERSIONING
+==================================================
+
+Không thay:
+
+pubspec.yaml version
+build number increment logic
+commit version bump
+commit_sha handoff
+artifact names
+
+Migration signing không được thay đổi release/version behavior.
+
+==================================================
+24. DOCUMENTATION CLEANUP
+==================================================
+
+Update:
+
+ios/fastlane/.env.example
+ios/fastlane/README.md
+
+Và search toàn repository cho:
+
+IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
+IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+IOS_APPSTORE_PROVISIONING_PROFILE_BASE64
+
+Các docs/skill files đang mô tả signing cũ cũng phải update để agent sau không khôi phục cách P12 base64 cũ.
+
+Sau migration documentation phải nói required iOS CI secrets là:
+
+APP_STORE_CONNECT_KEY_ID
+APP_STORE_CONNECT_ISSUER_ID
+APP_STORE_CONNECT_API_KEY_P8
+
+IOS_TEAM_ID
+
+MATCH_GIT_URL
+MATCH_PASSWORD
+MATCH_GIT_BASIC_AUTHORIZATION
+
+Không sửa docs Android không liên quan.
+
+==================================================
+25. SECRETS KHÔNG ĐƯỢC XÓA TỰ ĐỘNG
+==================================================
+
+Agent KHÔNG được delete GitHub Secrets.
+
+Ba secret cũ:
+
+IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
+IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+IOS_APPSTORE_PROVISIONING_PROFILE_BASE64
+
+chỉ được user xóa SAU KHI TestFlight Match build thành công.
+
+==================================================
+26. SECURITY RULES
+==================================================
+
+Tuyệt đối không:
+
+match nuke
+readonly: false
+force: true
+revoke certificate
+create certificate
+renew certificate
+regenerate profile
+modify apple-signing
+commit decrypted signing assets
+commit p8
+commit PAT
+print secrets
+print MATCH_PASSWORD
+print MATCH_GIT_BASIC_AUTHORIZATION
+
+Routine Edu-Tech CI luôn:
+
+readonly: true
+
+==================================================
+27. PRE-MIGRATION ASSUMPTIONS
+==================================================
+
+Signing assets đã tồn tại:
+
+Apple Distribution
++
+AppStore_com.nguyenduc.edtech.mobileprovision
+
+Agent không cần tạo chúng.
+
+Nếu Match báo không tìm thấy asset:
+
+STOP.
+
+Không tự tạo asset mới.
+
+Report lỗi để kiểm tra:
+
+MATCH_PASSWORD
+MATCH_GIT_BASIC_AUTHORIZATION
+MATCH_GIT_URL
+bundle id
+profile availability
+
+==================================================
+28. EXPECTED FINAL FASTLANE FLOW
+==================================================
+
+Expected:
+
+GitHub macOS runner
+        ↓
+Checkout bumped commit
+        ↓
+Flutter setup
+        ↓
+Ruby/Bundler setup
+        ↓
+bundle exec fastlane ios beta
+        ↓
+setup_ci
+        ↓
+ASC API key
+        ↓
+Match appstore readonly
+        ↓
+clone private apple-signing
+        ↓
+decrypt with MATCH_PASSWORD
+        ↓
+install Apple Distribution + private key
+        ↓
+install com.nguyenduc.edtech App Store profile
+        ↓
+obtain Match profile mapping
+        ↓
+configure Runner Release manual signing
+        ↓
+build_app
+        ↓
+IPA
+        ↓
+upload_to_testflight
+
+==================================================
+29. REQUIRED GITHUB SECRETS AFTER MIGRATION
+==================================================
+
+Edu-Tech iOS signing/release requires:
+
+APP_STORE_CONNECT_KEY_ID
+APP_STORE_CONNECT_ISSUER_ID
+APP_STORE_CONNECT_API_KEY_P8
+
+IOS_TEAM_ID
+
+MATCH_GIT_URL
+MATCH_PASSWORD
+MATCH_GIT_BASIC_AUTHORIZATION
+
+The Match values can be the same values already proven in nro-unity,
+because both projects use the same Apple Team and same apple-signing repo.
+
+Do not copy old P12/profile secrets into the new design.
+
+==================================================
+30. TEST / VALIDATION BEFORE PUSH
+==================================================
+
+Agent phải inspect diff và chạy những validation không release được phép trong environment.
+
+At minimum:
+
+cd ios
+bundle check
+
+bundle exec fastlane lanes
+
+Ruby syntax:
+
+ruby -c fastlane/Fastfile
+
+Verify Matchfile syntax where possible.
+
+Validate GitHub Actions YAML.
+
+Search:
+
+grep -R \
+  "IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64\|IOS_DISTRIBUTION_CERTIFICATE_PASSWORD\|IOS_APPSTORE_PROVISIONING_PROFILE_BASE64" \
+  . \
+  --exclude-dir=.git
+
+Expected:
+
+Không còn reference trong active workflow/Fastlane/docs sau cleanup.
+
+Nếu có historical/archive file cần giữ thì report rõ, không âm thầm bỏ qua.
+
+Không trigger TestFlight từ agent nếu user chưa yêu cầu.
+
+==================================================
+31. USER TEST SAU KHI MERGE/PUSH
+==================================================
+
+Trước khi test Edu-Tech, có thể verify signing repo bằng:
+
+Apple Signing Maintenance
+
+mode:
+verify
+
+platform:
+ios
+
+type:
+appstore
+
+bundle_id:
+com.nguyenduc.edtech
+
+force_profile_renewal:
+false
+
+confirm_write:
+false
+
+Nếu verify xanh, test Edu-Tech:
+
+Actions
+→ Mobile Store Release
+→ Run workflow
+
+run_ios:
+true
+
+run_android:
+false
+
+Expected:
+
+- version bump thành công
+- reusable iOS workflow chạy
+- Match successfully decrypts repo
+- Match installs distribution certificate
+- Match installs edtech App Store profile
+- archive succeeds
+- export IPA succeeds
+- upload TestFlight succeeds
+
+==================================================
+32. THẾ NÀO LÀ MIGRATION THÀNH CÔNG
+==================================================
+
+Migration chỉ được coi là hoàn tất khi GitHub Actions TestFlight build thực tế thành công.
+
+Không coi:
+
+bundle exec fastlane lanes success
+
+hoặc:
+
+Match decrypt success
+
+là full end-to-end success.
+
+Phải có:
+
+Archive succeeded
++
+IPA export succeeded
++
+TestFlight upload succeeded
+
+==================================================
+33. SAU KHI TESTFLIGHT THÀNH CÔNG
+==================================================
+
+User có thể xóa 3 GitHub Actions secrets cũ:
+
+IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
+IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+IOS_APPSTORE_PROVISIONING_PROFILE_BASE64
+
+Giữ:
+
+APP_STORE_CONNECT_KEY_ID
+APP_STORE_CONNECT_ISSUER_ID
+APP_STORE_CONNECT_API_KEY_P8
+
+IOS_TEAM_ID
+
+MATCH_GIT_URL
+MATCH_PASSWORD
+MATCH_GIT_BASIC_AUTHORIZATION
+
+==================================================
+34. ACCEPTANCE CRITERIA
+==================================================
+
+Hoàn thành khi:
+
+1. ios/fastlane/Matchfile tồn tại.
+
+2. Matchfile trỏ tới MATCH_GIT_URL và branch main.
+
+3. Bundle ID vẫn là:
+   com.nguyenduc.edtech
+
+4. Team vẫn là:
+   Q236Z72BGN
+
+5. ios beta gọi setup_ci.
+
+6. ios beta gọi Match:
+   type appstore
+   platform ios
+   readonly true
+
+7. Provisioning profile lấy từ Match mapping.
+
+8. Không còn manual P12/profile install trong reusable-ios-testflight.yml.
+
+9. Không còn security import P12.
+
+10. Không còn tạo custom signing keychain.
+
+11. ASC API key vẫn được dùng để upload TestFlight.
+
+12. mobile-store-release.yml architecture không bị rewrite.
+
+13. Android flow không thay đổi.
+
+14. pubspec version bump không thay đổi.
+
+15. Appfile không còn Apple ID cá nhân.
+
+16. Không sửa apple-signing.
+
+17. Không create/revoke/renew Apple signing asset.
+
+18. Existing three old signing secrets chưa bị agent delete.
+
+19. Documentation đã chuyển sang Match secrets.
+
+20. Agent report đầy đủ validation kết quả.
+
+==================================================
+35. OUTPUT AGENT PHẢI TRẢ VỀ
+==================================================
+
+Sau khi implement, report ngắn:
+
+Changed files:
+- ...
+
+Signing flow:
+old → new
+
+Added required secrets:
+- IOS_TEAM_ID
+- MATCH_GIT_URL
+- MATCH_PASSWORD
+- MATCH_GIT_BASIC_AUTHORIZATION
+
+Old secrets no longer referenced by code:
+- IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
+- IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+- IOS_APPSTORE_PROVISIONING_PROFILE_BASE64
+
+Validation:
+- bundle check: ...
+- fastlane lanes: ...
+- Ruby syntax: ...
+- YAML: ...
+- old secret grep: ...
+
+Explicit confirmations:
+- apple-signing was NOT modified
+- no certificate was generated
+- no certificate/profile was revoked
+- match nuke was NOT run
+- maintain/readonly:false was NOT run
+- TestFlight was NOT triggered unless explicitly requested
