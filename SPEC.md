@@ -1,32 +1,43 @@
-Fix iOS build-number propagation only.
+The failure is NOT caused by the repository rename.
 
-Current problem:
-- pubspec/build artifact name is 2.0.1+70
-- App Store Connect still receives CFBundleVersion 68
-- ios/Runner/Info.plist uses $(CURRENT_PROJECT_VERSION)
-- Runner.xcodeproj currently hardcodes CURRENT_PROJECT_VERSION = 68
+The IPA was successfully built and signed.
 
-Required:
-1. In ios/Runner.xcodeproj/project.pbxproj, replace hardcoded Runner
-   CURRENT_PROJECT_VERSION values with:
-   "$(FLUTTER_BUILD_NUMBER)"
+The new archive version validation is resolving the archive path incorrectly.
 
-2. Preserve:
-   MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)"
+Fastlane runs from ios/, and build_app uses:
 
-3. Do this for all relevant Runner build configurations
-   (Debug/Profile/Release), not just Release.
+archive_path: "../build/ios/archive/Runner.xcarchive"
 
-4. Do not modify Match, certificates, profiles, apple-signing,
-   signing secrets, or TestFlight authentication.
+Therefore the real archive is:
 
-5. Before upload_to_testflight, validate the built archive:
-   CFBundleShortVersionString must equal pubspec version name.
-   CFBundleVersion must equal pubspec build number.
+<repo>/build/ios/archive/Runner.xcarchive
 
-6. Fail before upload if archive CFBundleVersion differs from
-   the pubspec build number.
+But the validation currently looks under:
 
-Expected for current release:
+<repo>/ios/build/ios/archive/Runner.xcarchive
+
+Fix the archive validation path.
+
+From ios/fastlane/Fastfile __dir__, use:
+
+../../build/ios/archive/Runner.xcarchive
+
+not:
+
+../build/ios/archive/Runner.xcarchive
+
+Prefer defining one absolute ARCHIVE_PATH constant and reuse it in both build_app and archive validation so paths cannot diverge.
+
+Do NOT modify:
+- Fastlane Match
+- signing
+- certificates
+- provisioning profiles
+- apple-signing
+- App Store Connect authentication
+
+After fixing the path, validate:
 CFBundleShortVersionString = 2.0.1
-CFBundleVersion = 70
+CFBundleVersion = 72
+
+Then continue upload_to_testflight.

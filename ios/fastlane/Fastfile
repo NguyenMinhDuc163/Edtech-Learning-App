@@ -3,6 +3,11 @@ default_platform(:ios)
 require "rbconfig"
 require "shellwords"
 
+ARCHIVE_PATH = File.expand_path(
+  "../../build/ios/archive/Runner.xcarchive",
+  __dir__
+)
+
 def bundle_command
   ENV["BUNDLE_BIN"] || File.join(File.dirname(RbConfig.ruby), "bundle")
 end
@@ -114,9 +119,9 @@ def configure_ci_code_signing
 end
 
 def validate_archive_version!(version)
-  archive_info_plist = File.expand_path(
-    "../build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Info.plist",
-    __dir__
+  archive_info_plist = File.join(
+    ARCHIVE_PATH,
+    "Products/Applications/Runner.app/Info.plist"
   )
 
   unless File.file?(archive_info_plist)
@@ -165,7 +170,7 @@ platform :ios do
       scheme: "Runner",
       configuration: "Release",
       export_options: build_export_options,
-      archive_path: "../build/ios/archive/Runner.xcarchive",
+      archive_path: ARCHIVE_PATH,
       output_directory: "../build/ios/ipa",
       output_name: "EdTech-#{version[:name]}-#{version[:number]}.ipa",
       clean: true,
