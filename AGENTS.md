@@ -101,7 +101,7 @@ plutil -lint ios/Runner/Info.plist
 cd ios && bundle exec fastlane lanes
 ```
 
-Fastlane reads the app version/build from `pubspec.yaml`. Local TestFlight upload expects `ios/fastlane/.env` copied from `.env.example` with App Store Connect key values, especially `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH` pointing to the raw `.p8` file. The GitHub Actions workflow `.github/workflows/ios-testflight.yml` bumps the build number on pushes to `main`, commits it with `[skip ci]`, installs signing assets from secrets, and runs `bundle exec fastlane ios beta` on macOS.
+Fastlane reads the app version/build from `pubspec.yaml`. Local TestFlight upload expects `ios/fastlane/.env` copied from `.env.example`, including App Store Connect API-key values and read-only Match access. The reusable GitHub Actions workflow `.github/workflows/reusable-ios-testflight.yml` receives the bumped commit from `mobile-store-release.yml`, uses `setup_ci` plus Fastlane Match to install existing signing assets, then runs `bundle exec fastlane ios beta` on macOS.
 
 ## Tests
 

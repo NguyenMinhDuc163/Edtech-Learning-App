@@ -3,6 +3,11 @@ default_platform(:ios)
 require "rbconfig"
 require "shellwords"
 
+ARCHIVE_PATH = File.expand_path(
+  "../../build/ios/archive/Runner.xcarchive",
+  __dir__
+)
+
 def bundle_command
   ENV["BUNDLE_BIN"] || File.join(File.dirname(RbConfig.ruby), "bundle")
 end
@@ -56,6 +61,26 @@ def ci_provisioning_profile_name
   ENV["IOS_PROVISIONING_PROFILE_NAME"].to_s.strip
 end
 
+def match_provisioning_profile_name!
+  profiles = Actions.lane_context[
+    SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING
+  ]
+
+  unless profiles.is_a?(Hash)
+    UI.user_error!("Fastlane Match did not provide provisioning profile mapping.")
+  end
+
+  profile_name = profiles[APP_IDENTIFIER].to_s.strip
+
+  if profile_name.empty?
+    UI.user_error!(
+      "Fastlane Match did not provide an App Store profile for #{APP_IDENTIFIER}."
+    )
+  end
+
+  profile_name
+end
+
 def build_export_options
   options = {
     method: "app-store",
@@ -93,6 +118,33 @@ def configure_ci_code_signing
   )
 end
 
+def validate_archive_version!(version)
+  archive_info_plist = File.join(
+    ARCHIVE_PATH,
+    "Products/Applications/Runner.app/Info.plist"
+  )
+
+  unless File.file?(archive_info_plist)
+    UI.user_error!("Built archive app Info.plist was not found at #{archive_info_plist}.")
+  end
+
+  marketing_version = sh(
+    "/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' " \
+    "#{Shellwords.escape(archive_info_plist)}"
+  ).strip
+  build_number = sh(
+    "/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' " \
+    "#{Shellwords.escape(archive_info_plist)}"
+  ).strip
+
+  return if marketing_version == version[:name] && build_number == version[:number]
+
+  UI.user_error!(
+    "Archive version mismatch: expected #{version[:name]}+#{version[:number]}, " \
+    "found #{marketing_version}+#{build_number}."
+  )
+end
+
 platform :ios do
   APP_IDENTIFIER = "com.nguyenduc.edtech"
   TEAM_ID = "Q236Z72BGN"
@@ -118,7 +170,7 @@ platform :ios do
       scheme: "Runner",
       configuration: "Release",
       export_options: build_export_options,
-      archive_path: "../build/ios/archive/Runner.xcarchive",
+      archive_path: ARCHIVE_PATH,
       output_directory: "../build/ios/ipa",
       output_name: "EdTech-#{version[:name]}-#{version[:number]}.ipa",
       clean: true,
@@ -130,13 +182,26 @@ platform :ios do
 
   desc "Build & upload iOS app to TestFlight"
   lane :beta do
+    setup_ci
+
     api_key = app_store_connect_api_key(
       key_id: ENV.fetch("APP_STORE_CONNECT_KEY_ID"),
       issuer_id: ENV.fetch("APP_STORE_CONNECT_ISSUER_ID"),
       key_filepath: ENV.fetch("APP_STORE_CONNECT_API_KEY_KEY_FILEPATH")
     )
 
+    match(
+      type: "appstore",
+      platform: "ios",
+      app_identifier: APP_IDENTIFIER,
+      readonly: true,
+      api_key: api_key
+    )
+
+    ENV["IOS_PROVISIONING_PROFILE_NAME"] = match_provisioning_profile_name!
+
     build
+    validate_archive_version!(pubspec_version)
 
     upload_to_testflight(
       api_key: api_key,

@@ -3,7 +3,7 @@ name: Mobile Store Release
 on:
   push:
     branches:
-      - main
+      - update/build-fastline
   workflow_dispatch:
     inputs:
       run_ios:
